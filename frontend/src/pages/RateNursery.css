@@ -1,0 +1,263 @@
+.rate-nursery-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rate-nursery-card {
+  background: white;
+  border-radius: 20px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.rate-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.header-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.rate-header h1 {
+  margin: 0 0 0.5rem 0;
+  color: #0b3d2e;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.rate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.rating-section {
+  text-align: center;
+}
+
+.rating-label {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0b3d2e;
+  margin-bottom: 1.5rem;
+}
+
+.stars-container {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.star-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #ddd;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.star-button:hover {
+  transform: scale(1.1);
+  color: #ffc107;
+}
+
+.star-button.active {
+  color: #ffc107;
+}
+
+.rating-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0b3d2e;
+  margin: 0;
+  min-height: 1.5rem;
+}
+
+.message-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0b3d2e;
+}
+
+.feedback-textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: #107a48;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(16, 122, 72, 0.1);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  color: #c33;
+  font-size: 0.9rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn {
+  background: #f8f9fa;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+
+.cancel-btn:hover {
+  background: #e9ecef;
+  border-color: #d0d0d0;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #107a48 0%, #0b3d2e 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 122, 72, 0.2);
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(16, 122, 72, 0.4);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.success-message {
+  text-align: center;
+  padding: 3rem;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.success-message h2 {
+  margin: 0 0 1rem 0;
+  color: #0b3d2e;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.success-message p {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.redirect-message {
+  color: #999;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .rate-nursery-container {
+    padding: 1rem;
+  }
+
+  .rate-nursery-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .rate-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .stars-container {
+    gap: 0.25rem;
+  }
+
+  .star-button svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .cancel-btn,
+  .submit-btn {
+    width: 100%;
+  }
+}
+
+
+
+
+
+

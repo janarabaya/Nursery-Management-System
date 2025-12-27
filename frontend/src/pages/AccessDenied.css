@@ -1,0 +1,125 @@
+.access-denied {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem;
+}
+
+.access-denied-container {
+  background: white;
+  border-radius: 16px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.access-denied-icon {
+  color: #dc3545;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.access-denied-container h1 {
+  margin: 0 0 1rem 0;
+  color: #0b3d2e;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.access-denied-message {
+  font-size: 1.2rem;
+  color: #666;
+  margin: 0 0 1rem 0;
+}
+
+.access-denied-details {
+  font-size: 1rem;
+  color: #888;
+  margin: 1.5rem 0;
+  line-height: 1.6;
+}
+
+.current-role {
+  display: block;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+}
+
+.current-role strong {
+  color: #0b3d2e;
+  font-size: 1.1rem;
+}
+
+.access-denied-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.go-home-btn,
+.go-back-btn {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.go-home-btn {
+  background: #107a48;
+  color: white;
+}
+
+.go-home-btn:hover {
+  background: #0b3d2e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 122, 72, 0.3);
+}
+
+.go-back-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.go-back-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .access-denied-container {
+    padding: 2rem 1.5rem;
+  }
+
+  .access-denied-container h1 {
+    font-size: 2rem;
+  }
+
+  .access-denied-actions {
+    flex-direction: column;
+  }
+
+  .go-home-btn,
+  .go-back-btn {
+    width: 100%;
+  }
+}
+

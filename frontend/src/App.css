@@ -1,0 +1,96 @@
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e2f7ec, #f5fff9);
+  color: #0f1f16;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.app-main-full {
+  padding: 0;
+}
+
+h2 {
+  margin: 0 0 0.5rem 0;
+}
+
+p {
+  margin: 0 0 1rem 0;
+}
+
+/* generic cards / panels (اختياري لو استخدمتها لاحقاً) */
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 8px 20px rgba(16, 122, 72, 0.08);
+  border: 1px solid rgba(16, 122, 72, 0.08);
+}
+
+.badge-green {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background-color: #8ee0ba;
+  color: #0b3d2e;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Dark Mode Styles - Comprehensive */
+.dark-mode .app-shell,
+[data-theme="dark"] .app-shell {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode .app-main,
+.dark-mode .app-main-full,
+[data-theme="dark"] .app-main,
+[data-theme="dark"] .app-main-full {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode .card {
+  background-color: #1e293b !important;
+  border-color: rgba(16, 122, 72, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode h2,
+.dark-mode h1,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: #e2e8f0 !important;
+}
+
+.dark-mode p,
+.dark-mode span:not([class*="badge"]):not([class*="status"]),
+.dark-mode label {
+  color: #cbd5e1 !important;
+}
+
+/* Override light gradients with dark versions */
+.dark-mode [class*="gradient"]:not([class*="dark"]) {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+}
+
+/* Override white backgrounds */
+.dark-mode [style*="background: white"],
+.dark-mode [style*="background-color: white"],
+.dark-mode [style*="background: #fff"],
+.dark-mode [style*="background-color: #fff"],
+.dark-mode [style*="background: #ffffff"],
+.dark-mode [style*="background-color: #ffffff"] {
+  background-color: #1e293b !important;
+  background: #1e293b !important;
+}

@@ -1,0 +1,273 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark Mode Styles - Force application with highest priority */
+html.dark-mode,
+body.dark-mode,
+html[data-theme="dark"],
+body[data-theme="dark"] {
+  color-scheme: dark !important;
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode,
+.dark-mode body,
+.dark-mode html,
+[data-theme="dark"],
+[data-theme="dark"] body,
+[data-theme="dark"] html {
+  color-scheme: dark !important;
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Force dark mode on all page containers */
+html.dark-mode .app-shell,
+html.dark-mode [class*="-page"],
+html.dark-mode [class*="page"],
+html.dark-mode [class*="container"],
+html.dark-mode [class*="content"],
+html.dark-mode [class*="dashboard"],
+html.dark-mode [class*="management"] {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Global dark mode transitions */
+.dark-mode * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Override white/light backgrounds in dark mode */
+.dark-mode div:not([class*="gradient"]):not([style*="background"]),
+.dark-mode section:not([class*="gradient"]):not([style*="background"]),
+.dark-mode main:not([class*="gradient"]):not([style*="background"]),
+.dark-mode article:not([class*="gradient"]):not([style*="background"]) {
+  background-color: transparent !important;
+}
+
+/* Ensure text is visible in dark mode */
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6,
+.dark-mode p,
+.dark-mode span:not([class*="badge"]):not([class*="status"]),
+.dark-mode label {
+  color: #e2e8f0 !important;
+}
+
+/* Override specific light backgrounds */
+.dark-mode [style*="background: white"],
+.dark-mode [style*="background-color: white"],
+.dark-mode [style*="background: #fff"],
+.dark-mode [style*="background-color: #fff"] {
+  background-color: #1e293b !important;
+}
+
+/* Comprehensive Dark Mode for All Pages */
+.dark-mode [class*="-page"],
+.dark-mode [class*="page"],
+.dark-mode [class*="container"],
+.dark-mode [class*="content"],
+.dark-mode [class*="section"],
+.dark-mode [class*="dashboard"],
+.dark-mode [class*="management"] {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Override light gradients with dark versions - STRONGEST PRIORITY */
+html.dark-mode [class*="gradient"],
+body.dark-mode [class*="gradient"],
+[data-theme="dark"] [class*="gradient"],
+.dark-mode [class*="gradient"],
+html.dark-mode .plants-page,
+html.dark-mode .home-hero,
+html.dark-mode .order-management-centered,
+html.dark-mode .manage-plants,
+html.dark-mode .employee-management,
+html.dark-mode .inventory-management,
+html.dark-mode .reports,
+html.dark-mode .customer-feedback-page {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  background-image: none !important;
+}
+
+/* Override ALL background gradients in dark mode */
+html.dark-mode *,
+body.dark-mode *,
+[data-theme="dark"] * {
+  background-image: none !important;
+}
+
+html.dark-mode [style*="gradient"],
+body.dark-mode [style*="gradient"],
+[data-theme="dark"] [style*="gradient"] {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  background-image: none !important;
+}
+
+/* Dark mode for cards and panels */
+.dark-mode [class*="card"],
+.dark-mode [class*="panel"],
+.dark-mode [class*="box"] {
+  background-color: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode for inputs and forms */
+.dark-mode input:not([type="checkbox"]):not([type="radio"]),
+.dark-mode textarea,
+.dark-mode select {
+  background-color: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Dark mode for buttons */
+.dark-mode button:not([class*="primary"]):not([class*="success"]):not([class*="danger"]) {
+  background-color: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode for links */
+.dark-mode a {
+  color: #60a5fa !important;
+}
+
+.dark-mode a:hover {
+  color: #93c5fd !important;
+}
+
+/* Dark mode for tables */
+.dark-mode table {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode th,
+.dark-mode td {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode thead {
+  background-color: #1e293b !important;
+}
+
+.dark-mode tbody tr {
+  background-color: #1e293b !important;
+}
+
+.dark-mode tbody tr:hover {
+  background-color: #334155 !important;
+}
+
+/* Dark mode for modals and overlays */
+.dark-mode [class*="modal"],
+.dark-mode [class*="overlay"],
+.dark-mode [class*="popup"] {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.dark-mode [class*="modal-content"],
+.dark-mode [class*="popup-content"] {
+  background-color: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode for navigation */
+.dark-mode [class*="nav"],
+.dark-mode [class*="navbar"],
+.dark-mode [class*="header"] {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode for lists */
+.dark-mode ul,
+.dark-mode ol {
+  color: #e2e8f0 !important;
+}
+
+.dark-mode li {
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode for badges and tags */
+.dark-mode [class*="badge"]:not([class*="green"]):not([class*="success"]) {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .form-group,
+[dir="rtl"] .form-row,
+[dir="rtl"] .form-actions {
+  direction: rtl;
+}
+
+[dir="rtl"] .tab-btn,
+[dir="rtl"] .settings-tabs {
+  direction: rtl;
+}
+
+[dir="rtl"] .permissions-grid,
+[dir="rtl"] .status-grid,
+[dir="rtl"] .reports-grid {
+  direction: rtl;
+}
+
+/* RTL specific adjustments */
+[dir="rtl"] input,
+[dir="rtl"] select,
+[dir="rtl"] textarea {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .feedback-tabs,
+[dir="rtl"] .inventory-tabs,
+[dir="rtl"] .report-sub-tabs {
+  direction: rtl;
+}

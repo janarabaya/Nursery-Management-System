@@ -1,0 +1,150 @@
+.birds-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bird {
+  position: absolute;
+  opacity: 0.65;
+  animation: birdFly infinite ease-in-out;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.bird-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: birdWingFlap 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes birdFly {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(40px, -20px) rotate(8deg);
+  }
+  40% {
+    transform: translate(80px, -10px) rotate(-5deg);
+  }
+  60% {
+    transform: translate(120px, -30px) rotate(6deg);
+  }
+  80% {
+    transform: translate(160px, -15px) rotate(-4deg);
+  }
+  100% {
+    transform: translate(200px, 0) rotate(0deg);
+  }
+}
+
+@keyframes birdWingFlap {
+  0% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(0) rotate(3deg);
+  }
+}
+
+/* Different animation patterns for variety */
+.bird:nth-child(2n) {
+  animation-name: birdFlyReverse;
+}
+
+.bird:nth-child(3n) {
+  animation-name: birdFlySlow;
+}
+
+.bird:nth-child(4n) {
+  animation-name: birdFlyFast;
+}
+
+@keyframes birdFlyReverse {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(-40px, -20px) rotate(-8deg);
+  }
+  40% {
+    transform: translate(-80px, -10px) rotate(5deg);
+  }
+  60% {
+    transform: translate(-120px, -30px) rotate(-6deg);
+  }
+  80% {
+    transform: translate(-160px, -15px) rotate(4deg);
+  }
+  100% {
+    transform: translate(-200px, 0) rotate(0deg);
+  }
+}
+
+@keyframes birdFlySlow {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(30px, -15px) rotate(4deg);
+  }
+  66% {
+    transform: translate(60px, -25px) rotate(-3deg);
+  }
+  100% {
+    transform: translate(90px, 0) rotate(0deg);
+  }
+}
+
+@keyframes birdFlyFast {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  15% {
+    transform: translate(50px, -25px) rotate(10deg);
+  }
+  30% {
+    transform: translate(100px, -15px) rotate(-7deg);
+  }
+  45% {
+    transform: translate(150px, -35px) rotate(8deg);
+  }
+  60% {
+    transform: translate(200px, -20px) rotate(-5deg);
+  }
+  75% {
+    transform: translate(250px, -30px) rotate(6deg);
+  }
+  100% {
+    transform: translate(300px, 0) rotate(0deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .bird {
+    opacity: 0.4;
+  }
+  
+  .birds-container {
+    display: none; /* Hide on mobile for better performance */
+  }
+}
+
+
+
+
+
+
+
+
+

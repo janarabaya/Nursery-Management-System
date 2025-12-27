@@ -1,0 +1,142 @@
+.ladybugs-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.ladybug {
+  position: absolute;
+  opacity: 0.7;
+  animation: ladybugCrawl infinite ease-in-out;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.ladybug-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: ladybugWalk 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes ladybugCrawl {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(30px, 5px) rotate(5deg);
+  }
+  50% {
+    transform: translate(60px, -3px) rotate(-3deg);
+  }
+  75% {
+    transform: translate(90px, 4px) rotate(4deg);
+  }
+  100% {
+    transform: translate(120px, 0) rotate(0deg);
+  }
+}
+
+@keyframes ladybugWalk {
+  0% {
+    transform: translateY(0) scaleX(1);
+  }
+  50% {
+    transform: translateY(-2px) scaleX(1);
+  }
+  100% {
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+/* Different animation patterns for variety */
+.ladybug:nth-child(2n) {
+  animation-name: ladybugCrawlReverse;
+}
+
+.ladybug:nth-child(3n) {
+  animation-name: ladybugCrawlSlow;
+}
+
+.ladybug:nth-child(4n) {
+  animation-name: ladybugCrawlFast;
+}
+
+@keyframes ladybugCrawlReverse {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-30px, 5px) rotate(-5deg);
+  }
+  50% {
+    transform: translate(-60px, -3px) rotate(3deg);
+  }
+  75% {
+    transform: translate(-90px, 4px) rotate(-4deg);
+  }
+  100% {
+    transform: translate(-120px, 0) rotate(0deg);
+  }
+}
+
+@keyframes ladybugCrawlSlow {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(20px, 3px) rotate(2deg);
+  }
+  66% {
+    transform: translate(40px, -2px) rotate(-2deg);
+  }
+  100% {
+    transform: translate(60px, 0) rotate(0deg);
+  }
+}
+
+@keyframes ladybugCrawlFast {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(40px, 6px) rotate(6deg);
+  }
+  40% {
+    transform: translate(80px, -4px) rotate(-4deg);
+  }
+  60% {
+    transform: translate(120px, 5px) rotate(5deg);
+  }
+  80% {
+    transform: translate(160px, -3px) rotate(-3deg);
+  }
+  100% {
+    transform: translate(200px, 0) rotate(0deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ladybug {
+    opacity: 0.4;
+  }
+  
+  .ladybugs-container {
+    display: none; /* Hide on mobile for better performance */
+  }
+}
+
+
+
+
+
+
+
+
+
+
