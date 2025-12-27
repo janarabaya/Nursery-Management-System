@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables
+.env
+**/.env
+.env.local
+.env.*.local
+
+# Database files (Access)
+*.accdb
+*.laccdb
+*.mdb
+backend/db/*.accdb
+backend/db/*.laccdb
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Build output
+dist/
+build/
+**/build/
+**/dist/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# React build
+frontend/build/
+
+# Package manager locks (optional - you might want to commit these)
+# package-lock.json
+# yarn.lock
+
