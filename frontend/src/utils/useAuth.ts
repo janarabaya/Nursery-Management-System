@@ -41,7 +41,18 @@ export function useAuth() {
   return { user, isLoading };
 }
 
-export function useRequireRole(requiredRole: UserRole) {
+// Check if roles match (handles both agriculture_engineer and agricultural_engineer variants)
+function rolesMatch(userRole: string | UserRole, requiredRole: string | UserRole): boolean {
+  if (userRole === requiredRole) return true;
+  // Handle agriculture_engineer vs agricultural_engineer mismatch
+  if ((userRole === 'agriculture_engineer' || userRole === 'agricultural_engineer') &&
+      (requiredRole === 'agriculture_engineer' || requiredRole === 'agricultural_engineer')) {
+    return true;
+  }
+  return false;
+}
+
+export function useRequireRole(requiredRole: UserRole | UserRole[]) {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -53,14 +64,22 @@ export function useRequireRole(requiredRole: UserRole) {
       }
 
       const userRoles = user.roles || (user.role ? [user.role] : []);
-      if (!userRoles.includes(requiredRole)) {
+      const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      const hasAccess = allowedRoles.some(reqRole => 
+        userRoles.some(userRole => rolesMatch(userRole as string, reqRole as string))
+      );
+      
+      if (!hasAccess) {
         navigate('/access-denied');
       }
     }
   }, [user, isLoading, requiredRole, navigate]);
 
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  const hasAccess = !isLoading && user && userRoles.includes(requiredRole);
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const hasAccess = !isLoading && user && allowedRoles.some(reqRole => 
+    userRoles.some(userRole => rolesMatch(userRole as string, reqRole as string))
+  );
 
   return { user, isLoading, hasAccess: hasAccess || false };
 }

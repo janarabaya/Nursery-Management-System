@@ -565,11 +565,13 @@
   border: 2px solid transparent;
   border-radius: 10px;
   cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
   transition: all 0.3s ease;
   white-space: nowrap;
+  min-width: fit-content;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .tab-btn:hover {
@@ -582,6 +584,8 @@
   color: white;
   border-color: #047857;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-weight: 800;
 }
 
 /* Section Header Bar */

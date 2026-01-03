@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './CustomerFeedbackPage.css';
 
 interface Feedback {
@@ -68,8 +69,6 @@ export function CustomerFeedbackPage() {
   const [showResponseForm, setShowResponseForm] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [resolvingId, setResolvingId] = useState<number | null>(null);
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -949,3 +948,4 @@ export function CustomerFeedbackPage() {
     </div>
   );
 }
+

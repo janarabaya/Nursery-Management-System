@@ -64,16 +64,75 @@ router.get('/me/orders', authenticate, customerOnly, asyncHandler(async (req, re
     ORDER BY o.PlacedAt DESC
   `);
   
-  const formattedOrders = orders.map(o => ({
-    id: o.id,
-    status: o.status,
-    total_amount: parseFloat(o.total_amount) || 0,
-    payment_method: o.payment_method,
-    payment_status: o.payment_status,
-    delivery_address: o.delivery_address,
-    notes: o.notes,
-    placed_at: o.placed_at,
-    updated_at: o.updated_at
+  // Get OrderProgress for each order
+  const formattedOrders = await Promise.all(orders.map(async (o) => {
+    let orderProgress = null;
+    
+    // Try to get OrderProgress from different possible column names
+    const possibleColumnNames = [
+      '[Order Progress]',
+      'OrderProgress',
+      '[OrderProgress]',
+      'Order_Progress',
+      '[Order_Progress]',
+      'Progress',
+      '[Progress]'
+    ];
+    
+    for (const columnName of possibleColumnNames) {
+      try {
+        const progressResult = await db.query(`
+          SELECT ${columnName} as order_progress
+          FROM Orders
+          WHERE ID = ${db.escapeSQL(o.id)}
+        `);
+        
+        if (progressResult && progressResult.length > 0 && progressResult[0].order_progress) {
+          orderProgress = String(progressResult[0].order_progress);
+          break;
+        }
+      } catch (err) {
+        // Try next column name
+        continue;
+      }
+    }
+    
+    // If still not found, try SELECT * to find the column
+    if (!orderProgress) {
+      try {
+        const allColumnsResult = await db.query(`
+          SELECT * FROM Orders WHERE ID = ${db.escapeSQL(o.id)}
+        `);
+        
+        if (allColumnsResult && allColumnsResult.length > 0) {
+          const row = allColumnsResult[0];
+          for (const key of Object.keys(row)) {
+            const keyLower = key.toLowerCase();
+            if (keyLower.includes('progress') || 
+                keyLower.includes('order progress') ||
+                keyLower === 'orderprogress') {
+              orderProgress = String(row[key] || '');
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        // Ignore error
+      }
+    }
+    
+    return {
+      id: o.id,
+      status: o.status,
+      total_amount: parseFloat(o.total_amount) || 0,
+      payment_method: o.payment_method,
+      payment_status: o.payment_status,
+      delivery_address: o.delivery_address,
+      notes: o.notes,
+      placed_at: o.placed_at,
+      updated_at: o.updated_at,
+      order_progress: orderProgress || null
+    };
   }));
   
   ok(res, formattedOrders);

@@ -6,7 +6,7 @@ import { AccessDenied } from '../pages/AccessDenied';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole: UserRole;
+  requiredRole: UserRole | UserRole[];
   fallback?: 'denied' | 'home' | 'register';
 }
 
@@ -54,9 +54,23 @@ export function ProtectedRoute({
     return <Navigate to="/register" replace />;
   }
 
-  // Check if user has the required role
+  // Check if roles match (handles both agriculture_engineer and agricultural_engineer variants)
+  const rolesMatch = (userRole: string | UserRole, requiredRole: string | UserRole): boolean => {
+    if (userRole === requiredRole) return true;
+    // Handle agriculture_engineer vs agricultural_engineer mismatch
+    if ((userRole === 'agriculture_engineer' || userRole === 'agricultural_engineer') &&
+        (requiredRole === 'agriculture_engineer' || requiredRole === 'agricultural_engineer')) {
+      return true;
+    }
+    return false;
+  };
+
+  // Check if user has the required role(s)
   const userRoles = user.roles || (user.role ? [user.role] : []);
-  const hasAccess = userRoles.includes(requiredRole);
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const hasAccess = allowedRoles.some(reqRole => 
+    userRoles.some(userRole => rolesMatch(userRole as string, reqRole as string))
+  );
 
   if (!hasAccess) {
     if (fallback === 'denied') {

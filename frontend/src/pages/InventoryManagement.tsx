@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './InventoryManagement.css';
 
 interface InventoryItem {
@@ -147,8 +148,6 @@ export function InventoryManagement() {
     supplier: '',
     priority: 'medium' as 'high' | 'medium' | 'low',
   });
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -1643,7 +1642,7 @@ export function InventoryManagement() {
             {reportSubTab === 'orders' && (
               <div className="report-content">
                 <div className="report-subsection">
-                  <h3>Order Status Overview</h3>
+                  <h3>Order Progress Overview</h3>
                   <div className="order-status-overview">
                     <div className="order-stat-card new">
                       <div className="order-stat-label">New Orders</div>
@@ -2067,3 +2066,4 @@ export function InventoryManagement() {
     </div>
   );
 }
+

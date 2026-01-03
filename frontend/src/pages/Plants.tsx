@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import './Plants.css';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { NotificationContainer } from '../components/NotificationContainer';
+import { API_BASE_URL } from '../config/api';
 import { DecorativeButterflies } from '../components/DecorativeButterflies';
 
-type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'accessories' | 'indoor' | 'other';
+type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'tree' | 'accessories' | 'indoor' | 'other';
 
 interface Plant {
   id: number;
@@ -15,6 +16,7 @@ interface Plant {
   imageUrl: string;
   category: PlantCategory[];
   categoryID?: string | number; // ID from database
+  plantType?: string; // Plant Type from database
   isPopular?: boolean;
   quantity?: number;
 }
@@ -31,8 +33,6 @@ export function Plants() {
   const [favoriteNotifications, setFavoriteNotifications] = useState<Array<{ id: number; message: string }>>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
   // Fetch plants from Access database
   useEffect(() => {
@@ -124,8 +124,18 @@ export function Plants() {
                 else if (catLower.includes('fruit') || catLower.includes('فاكهة')) categoryArray = ['fruit'];
                 else if (catLower.includes('flower') || catLower.includes('زهرة')) categoryArray = ['flower'];
                 else if (catLower.includes('medicinal') || catLower.includes('طبي')) categoryArray = ['medicinal'];
+                else if (catLower.includes('tree') || catLower.includes('شجرة')) categoryArray = ['tree'];
                 else if (catLower.includes('indoor') || catLower.includes('داخلي')) categoryArray = ['indoor'];
                 else if (catLower.includes('accessory') || catLower.includes('اكسسوار')) categoryArray = ['accessories'];
+              }
+              
+              // Also check Plant Type from database
+              const plantType = item['Plant Type'] || item.PlantType || item['Plant_Type'] || item.plantType || null;
+              if (plantType && typeof plantType === 'string') {
+                const plantTypeLower = plantType.toLowerCase().trim();
+                if (plantTypeLower === 'tree') {
+                  categoryArray = ['tree'];
+                }
               }
               
               return {
@@ -136,6 +146,7 @@ export function Plants() {
                 imageUrl: finalImageUrl,
                 category: categoryArray,
                 categoryID: item.CategoryID || item.categoryID || item.Category_ID || null, // Store CategoryID from database
+                plantType: item['Plant Type'] || item.PlantType || item['Plant_Type'] || item.plantType || null, // Store Plant Type from database
                 isPopular: item.IsPopular || item.isPopular || item.Popular || false,
                 quantity: item.Quantity || item.quantity || item.Stock || item.stock || 0
               };
@@ -991,8 +1002,7 @@ export function Plants() {
     { value: 'fruit' as PlantCategory, label: 'Fruits' },
     { value: 'flower' as PlantCategory, label: 'Flowers' },
     { value: 'medicinal' as PlantCategory, label: 'Medicinal Herbs' },
-    { value: 'accessories' as PlantCategory, label: 'Plant Accessories' },
-    { value: 'indoor' as PlantCategory, label: 'Indoor Plants' },
+    { value: 'tree' as PlantCategory, label: 'Trees' },
   ];
 
   const filteredPlants = plants.filter((plant) => {
@@ -1004,26 +1014,27 @@ export function Plants() {
     // Filter by category using CategoryID from database
     if (selectedCategory === 'all') return true;
     
-    // Map category names to CategoryID values
-    const categoryIDMap: Record<PlantCategory, string | null> = {
+    // Map category to Plant Type values
+    const plantTypeMap: Record<PlantCategory, string | null> = {
       'all': null,
-      'vegetable': '1',
-      'fruit': '2',
-      'flower': '3',
-      'medicinal': '4',
-      'accessories': null, // Not in database
-      'indoor': null, // Not in database
+      'vegetable': 'Vegetable',
+      'fruit': 'Fruit',
+      'flower': 'Flower',
+      'medicinal': 'Herb',
+      'tree': 'Tree',
+      'accessories': null,
+      'indoor': null,
       'other': null
     };
     
-    const expectedCategoryID = categoryIDMap[selectedCategory];
+    const expectedPlantType = plantTypeMap[selectedCategory];
     
-    // If we have CategoryID from database, use it for filtering
-    if (plant.categoryID !== undefined && plant.categoryID !== null) {
-      return String(plant.categoryID) === String(expectedCategoryID);
+    // If we have Plant Type from database, use it for filtering
+    if (expectedPlantType !== null && plant.plantType !== undefined && plant.plantType !== null) {
+      return String(plant.plantType).trim() === expectedPlantType;
     }
     
-    // Fallback to category name matching if CategoryID is not available
+    // Fallback to category name matching if Plant Type is not available
     return plant.category.includes(selectedCategory);
   });
 
@@ -1253,3 +1264,4 @@ export function Plants() {
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './EmployeeManagement.css';
 
 interface Employee {
@@ -69,7 +70,7 @@ interface RolePermissions {
   };
 }
 
-type ActiveTab = 'employees' | 'task-assignment' | 'schedule' | 'performance' | 'completed-tasks' | 'attendance' | 'notes' | 'reports' | 'permissions';
+type ActiveTab = 'employees' | 'task-assignment' | 'schedule' | 'performance' | 'completed-tasks' | 'attendance' | 'notes' | 'permissions';
 
 export function EmployeeManagement() {
   const { user, isLoading, hasAccess } = useRequireRole('manager');
@@ -91,8 +92,18 @@ export function EmployeeManagement() {
   const [success, setSuccess] = useState<string>('');
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [availablePermissions, setAvailablePermissions] = useState<string[]>([]);
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskForm, setTaskForm] = useState({
+    employee_id: '',
+    title: '',
+    description: '',
+    deadline: ''
+  });
 
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>({
     nursery_worker: {
@@ -125,7 +136,7 @@ export function EmployeeManagement() {
       name: 'موظف عام',
       permissions: [
         'View orders',
-        'Update order status',
+        'Update order progress',
       ],
     },
     agricultural_engineer: {
@@ -150,7 +161,7 @@ export function EmployeeManagement() {
       'View plants',
       'Update inventory',
       'View orders',
-      'Update order status',
+      'Update order progress',
       'View assigned orders',
       'Update delivery status',
       'View customer addresses',
@@ -177,57 +188,204 @@ export function EmployeeManagement() {
     }
   }, [isLoading, hasAccess]);
 
-  const fetchEmployees = async () => {
+  // Fetch tasks when Task Assignment tab is active
+  useEffect(() => {
+    if (activeTab === 'task-assignment' && !isLoading && hasAccess) {
+      fetchTasks();
+    }
+  }, [activeTab, isLoading, hasAccess]);
+
+  const fetchTasks = async () => {
+    setTasksLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/employees`, {
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        }
       });
 
       if (response.ok) {
         const data = await response.json();
-        const transformedEmployees = data.map((emp: any) => ({
-          id: emp.user_id || emp.id,
-          full_name: emp.user?.full_name || emp.full_name || 'Unknown',
-          email: emp.user?.email || emp.email || '',
-          phone: emp.user?.phone || emp.phone || '',
-          role: emp.user?.roles?.[0]?.name || emp.role || 'employee',
-          title: emp.title || '',
-          department: emp.department || '',
-          is_active: emp.is_active !== false,
-          hired_at: emp.hired_at || '',
-        }));
-        setEmployees(transformedEmployees);
+        if (data.success && Array.isArray(data.data)) {
+          setTasks(data.data);
+        } else if (Array.isArray(data)) {
+          setTasks(data);
+        } else {
+          setTasks([]);
+        }
       } else {
-        // Mock data for demo
-        setEmployees([
-          {
-            id: '1',
-            full_name: 'Ahmed Ali',
-            email: 'ahmed@example.com',
-            phone: '+970 59 123 4567',
-            role: 'nursery_worker',
-            title: 'Nursery Worker',
-            is_active: true,
-          },
-        ]);
+        setTasks([]);
       }
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error('Error fetching tasks:', error);
+      setTasks([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({
+          employee_id: taskForm.employee_id,
+          title: taskForm.title,
+          description: taskForm.description,
+          deadline: taskForm.deadline
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create task');
+      }
+
+      setSuccess('Task created successfully!');
+      setTaskForm({
+        employee_id: '',
+        title: '',
+        description: '',
+        deadline: ''
+      });
+      setShowTaskForm(false);
+      fetchTasks();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create task. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, status: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task status');
+      }
+
+      setSuccess('Task status updated successfully!');
+      fetchTasks();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Failed to update task status. Please try again.');
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`${API_BASE_URL}/employees`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📥 Employees API Response:', result);
+        
+        // Handle both response formats: { success, data, count } or direct array
+        const employeesData = result.data || result;
+        
+        if (Array.isArray(employeesData)) {
+          const transformedEmployees = employeesData.map((emp: any) => ({
+            id: String(emp.EmployeeID || emp.ID || emp.id || emp.user_id || Date.now() + Math.random()),
+            full_name: emp.full_name || emp.Name || emp.FullName || emp.user?.full_name || 'Unknown',
+            email: emp.email || emp.Email || emp.user?.email || '',
+            phone: emp.phone || emp.Phone || emp.user?.phone || '',
+            role: emp.role || emp.Role || emp.user?.roles?.[0]?.name || 'employee',
+            title: emp.title || emp.Title || '',
+            department: emp.department || emp.Department || '',
+            is_active: emp.is_active !== false && emp.IsActive !== false && (emp.is_active !== undefined || emp.IsActive !== undefined ? (emp.is_active || emp.IsActive) : true),
+            hired_at: emp.hired_at || emp.HiredAt || emp.HireDate || emp.hire_date || '',
+          }));
+          console.log('✅ Transformed employees:', transformedEmployees);
+          setEmployees(transformedEmployees);
+          setError('');
+        } else {
+          console.warn('⚠️ Employees data is not an array:', employeesData);
+          setEmployees([]);
+          setError('Invalid employees data format');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch employees:', response.status, errorData);
+        setError('Failed to load employees. Please try again.');
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching employees:', error);
       setError('Failed to load employees. Please try again.');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEmployeeForm(prev => ({ ...prev, [name]: value }));
     setError('');
     setSuccess('');
+    
+    // Auto-fetch employee name when email is entered (only for new employees, not when editing)
+    if (name === 'email' && value && !editingEmployee) {
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(value)) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/employees/by-email/${encodeURIComponent(value)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.full_name) {
+              setEmployeeForm(prev => ({ ...prev, name: data.data.full_name }));
+              // Optionally fill other fields if available
+              if (data.data.phone) {
+                setEmployeeForm(prev => ({ ...prev, phone: data.data.phone }));
+              }
+              if (data.data.role) {
+                setEmployeeForm(prev => ({ ...prev, role: data.data.role }));
+              }
+            }
+          }
+        } catch (error) {
+          // Silently fail - employee might not exist yet, which is fine
+          console.log('Employee not found or error fetching:', error);
+        }
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -279,10 +437,66 @@ export function EmployeeManagement() {
     }
   };
 
-  const handleEdit = (employee: Employee) => {
+  const handleEdit = async (employee: Employee) => {
     setEditingEmployee(employee);
+    
+    // Fetch employee name from database using email
+    let employeeName = employee.full_name;
+    if (employee.email && employeeName === 'Unknown') {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/employees/by-email/${encodeURIComponent(employee.email)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.full_name) {
+            employeeName = data.data.full_name;
+          } else if (data.full_name) {
+            // Handle case where data is returned directly
+            employeeName = data.full_name;
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching employee name:', error);
+        // Use the existing full_name if fetch fails
+      }
+    }
+    
+    // If still Unknown, try to get from Employees table directly via API
+    if (employeeName === 'Unknown' && employee.email) {
+      try {
+        const token = localStorage.getItem('authToken');
+        // Try to get from the main employees list
+        const response = await fetch(`${API_BASE_URL}/employees`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.data)) {
+            const foundEmployee = data.data.find((emp: any) => emp.email === employee.email);
+            if (foundEmployee && foundEmployee.full_name && foundEmployee.full_name !== 'Unknown') {
+              employeeName = foundEmployee.full_name;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching from employees list:', error);
+      }
+    }
+    
     setEmployeeForm({
-      name: employee.full_name,
+      name: employeeName,
       email: employee.email,
       role: employee.role,
       department: employee.department || '',
@@ -598,12 +812,6 @@ export function EmployeeManagement() {
             Notes & Issues
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reports')}
-          >
-            Reports
-          </button>
-          <button 
             className={`tab-btn ${activeTab === 'permissions' ? 'active' : ''}`}
             onClick={() => setActiveTab('permissions')}
           >
@@ -660,19 +868,6 @@ export function EmployeeManagement() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={employeeForm.department}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Sales, Operations"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
                   <label>Phone Number</label>
                   <input
                     type="tel"
@@ -682,7 +877,10 @@ export function EmployeeManagement() {
                     placeholder="+970 59 123 4567"
                   />
                 </div>
-                {!editingEmployee && (
+              </div>
+
+              {!editingEmployee && (
+                <div className="form-row">
                   <div className="form-group">
                     <label>Password {!editingEmployee && '(Optional - default will be generated)'}</label>
                     <input
@@ -693,8 +891,8 @@ export function EmployeeManagement() {
                       placeholder="Leave empty for default password"
                     />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {rolePermissions[employeeForm.role] && (
                 <div className="permissions-preview">
@@ -719,139 +917,444 @@ export function EmployeeManagement() {
           </div>
         )}
 
-        <div className="dashboard-section">
-          <div className="section-header">
-            <div className="section-header-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
+        {/* Employees Tab */}
+        {activeTab === 'employees' && (
+          <div className="dashboard-section">
+            <div className="section-header">
+              <div className="section-header-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <h2>All Employees ({(() => {
+                const filtered = employees.filter((employee) => {
+                  if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    const matchesSearch = 
+                      employee.full_name?.toLowerCase().includes(query) ||
+                      employee.email?.toLowerCase().includes(query) ||
+                      employee.phone?.toLowerCase().includes(query);
+                    if (!matchesSearch) return false;
+                  }
+                  if (filterRole !== 'all' && employee.role !== filterRole) return false;
+                  if (filterStatus !== 'all') {
+                    if (filterStatus === 'active' && !employee.is_active) return false;
+                    if (filterStatus === 'inactive' && employee.is_active) return false;
+                  }
+                  return true;
+                });
+                return filtered.length;
+              })()})</h2>
             </div>
-            <h2>All Employees ({employees.length})</h2>
-          </div>
 
-          {loading ? (
-            <div className="loading-state">
-              <div className="loading-spinner-small"></div>
-              <p>Loading employees...</p>
+            {/* Search and Filter Controls */}
+            <div className="employees-controls" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="search-box" style={{ flex: '1', minWidth: '250px' }}>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #d1fae5',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'border-color 0.3s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = '#d1fae5'}
+                />
+              </div>
+              <div className="filter-controls" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  style={{
+                    padding: '0.75rem',
+                    border: '2px solid #d1fae5',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="all">All Roles</option>
+                  <option value="nursery_worker">عامل مشتل (Nursery Worker)</option>
+                  <option value="delivery">موظف توصيل (Delivery)</option>
+                  <option value="accountant">محاسب (Accountant)</option>
+                  <option value="employee">موظف عام (General Employee)</option>
+                  <option value="agricultural_engineer">مهندس زراعي (Agricultural Engineer)</option>
+                </select>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{
+                    padding: '0.75rem',
+                    border: '2px solid #d1fae5',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                {(searchQuery || filterRole !== 'all' || filterStatus !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterRole('all');
+                      setFilterStatus('all');
+                    }}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      transition: 'background-color 0.3s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
             </div>
-          ) : employees.length === 0 ? (
-            <div className="empty-state">
-              <p>No employees found.</p>
-            </div>
-          ) : (
-            <div className="employees-table-container">
-              <table className="employees-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Role</th>
-                    <th>Department</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((employee) => (
-                    <tr key={employee.id}>
-                      <td className="employee-name">{employee.full_name}</td>
-                      <td>{employee.email}</td>
-                      <td>{employee.phone || 'N/A'}</td>
-                      <td>
-                        <span className="role-badge">
-                          {rolePermissions[employee.role]?.name || employee.role}
-                        </span>
-                      </td>
-                      <td>{employee.department || employee.title || 'N/A'}</td>
-                      <td>
-                        <span className={`status-badge ${employee.is_active ? 'active' : 'inactive'}`}>
-                          {employee.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="actions-cell">
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleEdit(employee)}
-                          title="Edit Employee"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className={`toggle-status-btn ${employee.is_active ? 'deactivate' : 'activate'}`}
-                          onClick={() => handleToggleStatus(employee.id, employee.is_active)}
-                          title={employee.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                          {employee.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDelete(employee.id)}
-                          title="Delete Employee"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+
+            {loading ? (
+              <div className="loading-state">
+                <div className="loading-spinner-small"></div>
+                <p>Loading employees...</p>
+              </div>
+            ) : (() => {
+              // Filter employees based on search and filters
+              const filteredEmployees = employees.filter((employee) => {
+                // Search filter
+                if (searchQuery) {
+                  const query = searchQuery.toLowerCase();
+                  const matchesSearch = 
+                    employee.full_name?.toLowerCase().includes(query) ||
+                    employee.email?.toLowerCase().includes(query) ||
+                    employee.phone?.toLowerCase().includes(query);
+                  if (!matchesSearch) return false;
+                }
+                
+                // Role filter
+                if (filterRole !== 'all' && employee.role !== filterRole) {
+                  return false;
+                }
+                
+                // Status filter
+                if (filterStatus !== 'all') {
+                  if (filterStatus === 'active' && !employee.is_active) return false;
+                  if (filterStatus === 'inactive' && employee.is_active) return false;
+                }
+                
+                return true;
+              });
+
+              return filteredEmployees.length === 0 ? (
+                <div className="empty-state">
+                  <p>No employees found matching your criteria.</p>
+                </div>
+              ) : (
+                <div className="employees-table-container">
+                  <table className="employees-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEmployees.map((employee) => (
+                      <tr key={employee.id}>
+                        <td className="employee-name">{employee.full_name}</td>
+                        <td>{employee.email}</td>
+                        <td>{employee.phone || 'N/A'}</td>
+                        <td>
+                          <span className="role-badge">
+                            {rolePermissions[employee.role]?.name || employee.role}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${employee.is_active ? 'active' : 'inactive'}`}>
+                            {employee.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="actions-cell">
+                          <button
+                            className="edit-btn"
+                            onClick={() => handleEdit(employee)}
+                            title="Edit Employee"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`toggle-status-btn ${employee.is_active ? 'deactivate' : 'activate'}`}
+                            onClick={() => handleToggleStatus(employee.id, employee.is_active)}
+                            title={employee.is_active ? 'Deactivate' : 'Activate'}
+                          >
+                            {employee.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDelete(employee.id)}
+                            title="Delete Employee"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Task Assignment Tab */}
         {activeTab === 'task-assignment' && (
           <div className="task-assignment-section">
-            <div className="section-header-bar">
+            <div className="section-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2>Task Assignment</h2>
+              <button
+                onClick={() => setShowTaskForm(!showTaskForm)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}
+              >
+                {showTaskForm ? 'Cancel' : '+ Assign New Task'}
+              </button>
             </div>
-            <div className="task-assignment-grid">
-              {employees.map(employee => (
-                <div key={employee.id} className="task-assignment-card">
-                  <div className="task-employee-header">
-                    <h3>{employee.full_name}</h3>
-                    <span className="employee-role">{rolePermissions[employee.role]?.name || employee.role}</span>
+
+            {error && <div className="alert alert-error" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '8px' }}>{error}</div>}
+            {success && <div className="alert alert-success" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '8px' }}>{success}</div>}
+
+            {/* Task Creation Form */}
+            {showTaskForm && (
+              <div className="task-form-container" style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '2px solid #d1fae5' }}>
+                <h3 style={{ marginBottom: '1rem', color: '#047857' }}>Assign New Task</h3>
+                <form onSubmit={handleCreateTask}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#334155' }}>Employee *</label>
+                      <select
+                        required
+                        value={taskForm.employee_id}
+                        onChange={(e) => setTaskForm({ ...taskForm, employee_id: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          border: '2px solid #d1fae5',
+                          borderRadius: '8px',
+                          fontSize: '0.9rem',
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="">Select Employee</option>
+                        {employees.filter(e => e.is_active).map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.email})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#334155' }}>Deadline *</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={taskForm.deadline}
+                        onChange={(e) => setTaskForm({ ...taskForm, deadline: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          border: '2px solid #d1fae5',
+                          borderRadius: '8px',
+                          fontSize: '0.9rem',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="task-checkboxes">
-                    <label className="task-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={employee.assignedTasks?.watering || false}
-                        onChange={(e) => handleUpdateTaskAssignment(employee.id, 'watering', e.target.checked)}
-                      />
-                      <span>💧 Watering (الري)</span>
-                    </label>
-                    <label className="task-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={employee.assignedTasks?.fertilization || false}
-                        onChange={(e) => handleUpdateTaskAssignment(employee.id, 'fertilization', e.target.checked)}
-                      />
-                      <span>🌿 Fertilization (التسميد)</span>
-                    </label>
-                    <label className="task-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={employee.assignedTasks?.inspection || false}
-                        onChange={(e) => handleUpdateTaskAssignment(employee.id, 'inspection', e.target.checked)}
-                      />
-                      <span>🔍 Inspection (فحص النباتات)</span>
-                    </label>
-                    <label className="task-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={employee.assignedTasks?.orderPreparation || false}
-                        onChange={(e) => handleUpdateTaskAssignment(employee.id, 'orderPreparation', e.target.checked)}
-                      />
-                      <span>📦 Order Preparation (تجهيز الطلبات)</span>
-                    </label>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#334155' }}>Task Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={taskForm.title}
+                      onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                      placeholder="Enter task title"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #d1fae5',
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
                   </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#334155' }}>Description</label>
+                    <textarea
+                      value={taskForm.description}
+                      onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                      placeholder="Enter task description"
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #d1fae5',
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                        outline: 'none',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTaskForm(false);
+                        setTaskForm({ employee_id: '', title: '', description: '', deadline: '' });
+                      }}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#e5e7eb',
+                        color: '#374151',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        opacity: isSubmitting ? 0.6 : 1
+                      }}
+                    >
+                      {isSubmitting ? 'Creating...' : 'Create Task'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Tasks List */}
+            <div className="tasks-list-container">
+              <h3 style={{ marginBottom: '1rem', color: '#047857' }}>All Tasks ({tasks.length})</h3>
+              {tasksLoading ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <p>Loading tasks...</p>
                 </div>
-              ))}
+              ) : tasks.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                  <p>No tasks found. Create a new task to get started.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      style={{
+                        padding: '1.5rem',
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        border: '2px solid #d1fae5',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ marginBottom: '0.5rem', color: '#047857', fontSize: '1.1rem' }}>{task.title}</h4>
+                          <p style={{ marginBottom: '0.5rem', color: '#64748b' }}><strong>Employee:</strong> {task.employee_name || 'Unknown'}</p>
+                          {task.description && (
+                            <p style={{ marginBottom: '0.5rem', color: '#64748b' }}>{task.description}</p>
+                          )}
+                          <p style={{ marginBottom: '0.5rem', color: '#64748b' }}>
+                            <strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleString() : 'Not set'}
+                          </p>
+                          <p style={{ marginBottom: '0.5rem', color: '#64748b' }}>
+                            <strong>Created:</strong> {task.created_at ? new Date(task.created_at).toLocaleString() : 'Unknown'}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                          <span
+                            style={{
+                              padding: '0.4rem 0.8rem',
+                              borderRadius: '20px',
+                              fontSize: '0.85rem',
+                              fontWeight: '600',
+                              backgroundColor: task.status === 'completed' ? '#d1fae5' : task.status === 'in_progress' ? '#dbeafe' : '#fef3c7',
+                              color: task.status === 'completed' ? '#065f46' : task.status === 'in_progress' ? '#1e40af' : '#92400e'
+                            }}
+                          >
+                            {task.status || 'pending'}
+                          </span>
+                          <select
+                            value={task.status || 'pending'}
+                            onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                            style={{
+                              padding: '0.5rem',
+                              border: '2px solid #d1fae5',
+                              borderRadius: '8px',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1097,59 +1600,6 @@ export function EmployeeManagement() {
           </div>
         )}
 
-        {/* Reports Tab */}
-        {activeTab === 'reports' && (
-          <div className="reports-section">
-            <div className="section-header-bar">
-              <h2>Administrative Reports</h2>
-            </div>
-            <div className="reports-grid">
-              <div className="report-card">
-                <h3>Active Employees</h3>
-                <div className="report-value">{employees.filter(e => e.is_active).length}</div>
-                <div className="report-label">out of {employees.length} total</div>
-              </div>
-              <div className="report-card">
-                <h3>Task Distribution</h3>
-                <div className="task-distribution">
-                  <div className="dist-item">
-                    <span>Watering:</span>
-                    <span>{employees.filter(e => e.assignedTasks?.watering).length} employees</span>
-                  </div>
-                  <div className="dist-item">
-                    <span>Fertilization:</span>
-                    <span>{employees.filter(e => e.assignedTasks?.fertilization).length} employees</span>
-                  </div>
-                  <div className="dist-item">
-                    <span>Inspection:</span>
-                    <span>{employees.filter(e => e.assignedTasks?.inspection).length} employees</span>
-                  </div>
-                  <div className="dist-item">
-                    <span>Order Prep:</span>
-                    <span>{employees.filter(e => e.assignedTasks?.orderPreparation).length} employees</span>
-                  </div>
-                </div>
-              </div>
-              <div className="report-card">
-                <h3>Workload Analysis</h3>
-                <div className="workload-analysis">
-                  {employees.map(employee => {
-                    const taskCount = Object.values(employee.assignedTasks || {}).filter(Boolean).length;
-                    return (
-                      <div key={employee.id} className="workload-item">
-                        <span>{employee.full_name}</span>
-                        <span className={`workload-level ${taskCount > 3 ? 'high' : taskCount > 1 ? 'medium' : 'low'}`}>
-                          {taskCount} tasks
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Permissions Tab */}
         {activeTab === 'permissions' && (
           <div className="dashboard-section">
@@ -1254,3 +1704,4 @@ export function EmployeeManagement() {
     </div>
   );
 }
+

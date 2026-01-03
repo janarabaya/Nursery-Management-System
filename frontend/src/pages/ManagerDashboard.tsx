@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequireRole } from '../utils/useAuth';
 import { useLanguage } from '../contexts/LanguageContext';
+import { API_BASE_URL } from '../config/api';
 import './ManagerDashboard.css';
 
 interface DashboardStats {
@@ -28,7 +29,6 @@ export function ManagerDashboard() {
   const { user, isLoading, hasAccess } = useRequireRole('manager');
   const { t, language } = useLanguage();
   const navigate = useNavigate();
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
     pendingOrders: 0,
@@ -178,7 +178,7 @@ export function ManagerDashboard() {
       try {
         const token = localStorage.getItem('authToken');
         const reviewedParam = showReviewed ? 'true' : 'false';
-        const response = await fetch(`${API_BASE_URL}/api/feedback?reviewed=${reviewedParam}`, {
+        const response = await fetch(`${API_BASE_URL}/feedback?reviewed=${reviewedParam}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -215,13 +215,13 @@ export function ManagerDashboard() {
         
         switch (selectedReport) {
           case 'sales':
-            endpoint = `${API_BASE_URL}/api/reports/sales-detailed?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+            endpoint = `${API_BASE_URL}/reports/sales-detailed?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
             break;
           case 'orders':
-            endpoint = `${API_BASE_URL}/api/reports/orders-detailed?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+            endpoint = `${API_BASE_URL}/reports/orders-detailed?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
             break;
           case 'customers':
-            endpoint = `${API_BASE_URL}/api/reports/customer-activity?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+            endpoint = `${API_BASE_URL}/reports/customer-activity?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
             break;
         }
 
@@ -272,7 +272,7 @@ export function ManagerDashboard() {
       try {
         // Try to fetch from API
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/orders/large`, {
+        const response = await fetch(`${API_BASE_URL}/orders/large`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -388,7 +388,7 @@ export function ManagerDashboard() {
     setProcessingOrderId(orderId);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -435,7 +435,7 @@ export function ManagerDashboard() {
     setProcessingOrderId(orderId);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -502,7 +502,7 @@ export function ManagerDashboard() {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/employees`, {
+      const response = await fetch(`${API_BASE_URL}/employees`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -568,7 +568,7 @@ export function ManagerDashboard() {
     setReviewingFeedbackId(feedbackId);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/feedback/${feedbackId}/review`, {
+      const response = await fetch(`${API_BASE_URL}/feedback/${feedbackId}/review`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -60,10 +60,10 @@ router.get('/count', authenticate, staffOnly, asyncHandler(async (req, res) => {
 router.get('/', authenticate, adminOnly, asyncHandler(async (req, res) => {
   const employees = await db.query(`
     SELECT e.UserID as user_id, e.Title as title, e.IsActive as is_active,
-           e.HiredAt as hired_at, u.Email as email, u.FullName as full_name,
-           u.Phone as phone, u.Status as status, r.Name as role
+           e.HiredAt as hired_at, e.[Full Name] as full_name, e.Email as email, e.Phone as phone,
+           u.Email as user_email, u.Phone as user_phone, u.Status as status, r.Name as role
     FROM Employees e
-    INNER JOIN Users u ON e.UserID = u.ID
+    LEFT JOIN Users u ON e.UserID = u.ID
     LEFT JOIN UserRoles ur ON u.ID = ur.UserID
     LEFT JOIN Roles r ON ur.RoleID = r.ID
     ORDER BY e.HiredAt DESC
@@ -72,23 +72,54 @@ router.get('/', authenticate, adminOnly, asyncHandler(async (req, res) => {
   const formattedEmployees = employees.map(e => ({
     id: e.user_id,
     user_id: e.user_id,
-    email: e.email,
-    full_name: e.full_name,
-    phone: e.phone,
-    role: e.role,
-    title: e.title,
+    email: e.email || e.user_email || '',
+    full_name: e.full_name || 'Unknown',
+    phone: e.phone || e.user_phone || '',
+    role: e.role || 'employee',
+    title: e.title || '',
     is_active: Boolean(e.is_active),
     hired_at: e.hired_at,
     user: {
       id: e.user_id,
-      email: e.email,
-      full_name: e.full_name,
-      phone: e.phone,
+      email: e.email || e.user_email || '',
+      full_name: e.full_name || 'Unknown',
+      phone: e.phone || e.user_phone || '',
       status: e.status
     }
   }));
   
   ok(res, formattedEmployees);
+}));
+
+// ============================================
+// GET /api/employees/by-email/:email - Get employee by email
+// ============================================
+
+router.get('/by-email/:email', authenticate, adminOnly, asyncHandler(async (req, res) => {
+  const { email } = req.params;
+  
+  if (!email) {
+    return badRequest(res, 'Email parameter is required');
+  }
+  
+  // Query Employees table directly by Email
+  const employees = await db.query(`
+    SELECT [Full Name] as full_name, Email as email, Phone as phone, Role as role
+    FROM Employees
+    WHERE Email = ${db.escapeSQL(email)}
+  `);
+  
+  if (!employees || employees.length === 0) {
+    return notFound(res, 'Employee not found with this email');
+  }
+  
+  const employee = employees[0];
+  ok(res, {
+    full_name: employee.full_name,
+    email: employee.email,
+    phone: employee.phone || null,
+    role: employee.role || null
+  });
 }));
 
 // ============================================
@@ -240,20 +271,31 @@ router.patch('/:userId/status', authenticate, adminOnly, asyncHandler(async (req
 }));
 
 // ============================================
-// DELETE /api/employees/:userId - Manager: Delete (soft)
+// DELETE /api/employees/:id - Manager: Delete (soft)
+// Supports both :userId and :id parameters
 // ============================================
 
-router.delete('/:userId', authenticate, adminOnly, asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+router.delete('/:id', authenticate, adminOnly, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = id; // The id parameter can be userId or employee id
   
-  const existing = await db.query(`SELECT UserID FROM Employees WHERE UserID = ${db.escapeSQL(userId)}`);
+  // Try to find employee by UserID first
+  let existing = await db.query(`SELECT UserID FROM Employees WHERE UserID = ${db.escapeSQL(userId)}`);
+  
+  // If not found, try to find by EmployeeID
+  if (!existing || existing.length === 0) {
+    existing = await db.query(`SELECT UserID FROM Employees WHERE EmployeeID = ${db.escapeSQL(userId)}`);
+  }
+  
   if (!existing || existing.length === 0) {
     return notFound(res, 'Employee not found');
   }
   
+  const actualUserId = existing[0].UserID || userId;
+  
   // Soft delete
-  await db.execute(db.buildUpdate('Employees', { IsActive: false }, { UserID: userId }));
-  await db.execute(db.buildUpdate('Users', { Status: 'inactive' }, { ID: userId }));
+  await db.execute(db.buildUpdate('Employees', { IsActive: false }, { UserID: actualUserId }));
+  await db.execute(db.buildUpdate('Users', { Status: 'inactive' }, { ID: actualUserId }));
   
   ok(res, { message: 'Employee deleted successfully' });
 }));

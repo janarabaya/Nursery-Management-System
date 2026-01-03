@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Nursery - Plants Catalog</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.5rem;
+            padding: 3rem;
+        }
+
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 2rem 0;
+            font-size: 1.1rem;
+        }
+
+        .plants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .plant-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plant-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .plant-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .plant-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .plant-info {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plant-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .plant-category {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+            text-transform: capitalize;
+        }
+
+        .plant-description {
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            flex-grow: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .plant-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+            margin-top: auto;
+        }
+
+        .plant-price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .plant-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-unavailable {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .count-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌱 Plant Nursery</h1>
+            <p class="subtitle">Discover our beautiful collection of plants</p>
+        </header>
+
+        <div id="loading" class="loading">
+            Loading plants...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="plants-container" style="display: none;">
+            <div id="count-badge" class="count-badge"></div>
+            <div class="plants-grid" id="plants-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/test';
+        const IMAGES_BASE_URL = 'http://localhost:5000/images/';
+
+        // Get status class based on status value
+        function getStatusClass(status) {
+            if (!status) return 'status-pending';
+            const statusLower = String(status).toLowerCase();
+            if (statusLower.includes('available') || statusLower === 'true' || statusLower === '1') {
+                return 'status-available';
+            } else if (statusLower.includes('unavailable') || statusLower === 'false' || statusLower === '0') {
+                return 'status-unavailable';
+            }
+            return 'status-pending';
+        }
+
+        // Get status text
+        function getStatusText(status) {
+            if (!status) return 'Unknown';
+            const statusLower = String(status).toLowerCase();
+            if (statusLower.includes('available') || statusLower === 'true' || statusLower === '1') {
+                return 'Available';
+            } else if (statusLower.includes('unavailable') || statusLower === 'false' || statusLower === '0') {
+                return 'Unavailable';
+            }
+            return String(status);
+        }
+
+        // Format price
+        function formatPrice(price) {
+            if (!price) return '₪0.00';
+            const numPrice = parseFloat(price);
+            if (isNaN(numPrice)) return '₪0.00';
+            return `₪${numPrice.toFixed(2)}`;
+        }
+
+        // Get image URL
+        function getImageUrl(plant) {
+            // Try different possible image field names
+            const imageField = plant.ImageURL || plant.image_url || plant.Image || plant.image || plant.Picture || plant.picture;
+            
+            if (!imageField) {
+                return null;
+            }
+
+            // If it's already a full URL, return it
+            if (imageField.startsWith('http://') || imageField.startsWith('https://')) {
+                return imageField;
+            }
+
+            // If it's just a filename, prepend the images base URL
+            const filename = imageField.split('/').pop().split('\\').pop();
+            return IMAGES_BASE_URL + filename;
+        }
+
+        // Create plant card HTML
+        function createPlantCard(plant) {
+            const plantName = plant.PlantName || plant.Name || plant.plant_name || 'Unknown Plant';
+            const price = plant.Price || plant.price || plant.BasePrice || plant.base_price || 0;
+            const status = plant.Status || plant.status || plant.Available || 'Unknown';
+            const category = plant.Category || plant.category || '';
+            const description = plant.Description || plant.description || '';
+            const imageUrl = getImageUrl(plant);
+
+            return `
+                <div class="plant-card">
+                    <div class="plant-image">
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${plantName}" onerror="this.parentElement.innerHTML='No Image Available'">`
+                            : 'No Image Available'
+                        }
+                    </div>
+                    <div class="plant-info">
+                        <h2 class="plant-name">${plantName}</h2>
+                        ${category ? `<div class="plant-category">${category}</div>` : ''}
+                        ${description ? `<p class="plant-description">${description}</p>` : ''}
+                        <div class="plant-footer">
+                            <span class="plant-price">${formatPrice(price)}</span>
+                            <span class="plant-status ${getStatusClass(status)}">${getStatusText(status)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Fetch and display plants
+        async function loadPlants() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const containerEl = document.getElementById('plants-container');
+            const gridEl = document.getElementById('plants-grid');
+            const countBadgeEl = document.getElementById('count-badge');
+
+            try {
+                loadingEl.style.display = 'block';
+                errorEl.style.display = 'none';
+                containerEl.style.display = 'none';
+
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load plants');
+                }
+
+                const plants = result.data || [];
+                
+                loadingEl.style.display = 'none';
+
+                if (plants.length === 0) {
+                    errorEl.textContent = 'No plants found in the database.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Display count
+                countBadgeEl.textContent = `Found ${result.count || plants.length} plant${plants.length !== 1 ? 's' : ''}`;
+
+                // Render plant cards
+                gridEl.innerHTML = plants.map(plant => createPlantCard(plant)).join('');
+
+                containerEl.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading plants:', error);
+                loadingEl.style.display = 'none';
+                errorEl.textContent = `Error: ${error.message}. Make sure the backend server is running on http://localhost:5000`;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // Load plants when page loads
+        window.addEventListener('DOMContentLoaded', loadPlants);
+    </script>
+</body>
+</html>
+
+

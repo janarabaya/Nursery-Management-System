@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './Reports.css';
 
 interface SalesData {
@@ -34,7 +35,7 @@ interface TopSellingPlant {
 type ReportType = 'sales' | 'orders' | 'top-selling';
 
 export function Reports() {
-  const { user, isLoading, hasAccess } = useRequireRole('manager');
+  const { user, isLoading, hasAccess } = useRequireRole(['manager', 'agricultural_engineer']);
   const [selectedReport, setSelectedReport] = useState<ReportType>('sales');
   const [salesData, setSalesData] = useState<SalesData | null>(null);
   const [ordersData, setOrdersData] = useState<OrdersData | null>(null);
@@ -45,8 +46,6 @@ export function Reports() {
     endDate: new Date().toISOString().split('T')[0],
   });
   const [period, setPeriod] = useState<'daily' | 'monthly'>('daily');
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -491,12 +490,12 @@ export function Reports() {
                                     <span className="rank-badge">{index + 1}</span>
                                   </td>
                                   <td className="plant-name">{plant.plant_name}</td>
-                                  <td>{plant.total_sold} units</td>
-                                  <td>₪{plant.total_revenue.toLocaleString()}</td>
-                                  <td>{plant.order_count}</td>
+                                  <td>{plant.total_sold || 0} units</td>
+                                  <td>₪{(plant.total_revenue || 0).toLocaleString()}</td>
+                                  <td>{plant.order_count || 0}</td>
                                   <td>
                                     ₪
-                                    {plant.total_sold > 0
+                                    {plant.total_sold > 0 && plant.total_revenue
                                       ? (plant.total_revenue / plant.total_sold).toFixed(2)
                                       : 0}
                                   </td>
@@ -511,8 +510,9 @@ export function Reports() {
                         <h3>Top Selling Plants Revenue</h3>
                         <div className="bar-chart horizontal">
                           {topSellingPlants.map((plant, index) => {
-                            const maxRevenue = getMaxValue(topSellingPlants.map(p => p.total_revenue));
-                            const width = (plant.total_revenue / maxRevenue) * 100;
+                            const maxRevenue = getMaxValue(topSellingPlants.map(p => p.total_revenue || 0));
+                            const revenue = plant.total_revenue || 0;
+                            const width = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
 
                             return (
                               <div key={plant.plant_id} className="bar-item horizontal">
@@ -521,9 +521,9 @@ export function Reports() {
                                   <div
                                     className="bar horizontal"
                                     style={{ width: `${width}%` }}
-                                    title={`₪${plant.total_revenue.toLocaleString()}`}
+                                    title={`₪${revenue.toLocaleString()}`}
                                   >
-                                    <span className="bar-value">₪{plant.total_revenue.toLocaleString()}</span>
+                                    <span className="bar-value">₪{revenue.toLocaleString()}</span>
                                   </div>
                                 </div>
                               </div>
@@ -542,3 +542,4 @@ export function Reports() {
     </div>
   );
 }
+

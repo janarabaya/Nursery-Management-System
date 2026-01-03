@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './AgriculturalEngineerDashboard.css';
 
 interface Plant {
@@ -102,8 +103,6 @@ export function AgriculturalEngineerDashboard() {
     certifications: '',
   });
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   useEffect(() => {
     if (!isLoading && hasAccess) {
       fetchProfile();
@@ -145,9 +144,11 @@ export function AgriculturalEngineerDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setPlants(data);
+        // Handle different response formats - ensure we get an array
+        const plantsArray = Array.isArray(data) ? data : (data.data || data.plants || []);
+        setPlants(plantsArray);
       } else {
-        // Mock data
+        // Mock data on error
         const mockPlants: Plant[] = [
           {
             id: 1,
@@ -181,6 +182,8 @@ export function AgriculturalEngineerDashboard() {
       }
     } catch (error) {
       console.error('Error fetching plants:', error);
+      // Ensure plants is always an array even on error
+      setPlants([]);
     } finally {
       setIsLoadingData(false);
     }
@@ -197,9 +200,11 @@ export function AgriculturalEngineerDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setHealthLogs(data);
+        // Handle different response formats - ensure we get an array
+        const logsArray = Array.isArray(data) ? data : (data.data || data.logs || []);
+        setHealthLogs(logsArray);
       } else {
-        // Mock data
+        // Mock data on error
         const mockLogs: PlantHealthLog[] = [
           {
             id: 1,
@@ -217,6 +222,8 @@ export function AgriculturalEngineerDashboard() {
       }
     } catch (error) {
       console.error('Error fetching health logs:', error);
+      // Ensure healthLogs is always an array even on error
+      setHealthLogs([]);
     }
   };
 
@@ -231,9 +238,11 @@ export function AgriculturalEngineerDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setInspectionRecords(data);
+        // Handle different response formats - ensure we get an array
+        const recordsArray = Array.isArray(data) ? data : (data.data || data.records || []);
+        setInspectionRecords(recordsArray);
       } else {
-        // Mock data
+        // Mock data on error
         const mockRecords: InspectionRecord[] = [
           {
             id: 1,
@@ -250,6 +259,8 @@ export function AgriculturalEngineerDashboard() {
       }
     } catch (error) {
       console.error('Error fetching inspection records:', error);
+      // Ensure inspectionRecords is always an array even on error
+      setInspectionRecords([]);
     }
   };
 
@@ -264,9 +275,11 @@ export function AgriculturalEngineerDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setInventory(data);
+        // Handle different response formats - ensure we get an array
+        const inventoryArray = Array.isArray(data) ? data : (data.data || data.items || []);
+        setInventory(inventoryArray);
       } else {
-        // Mock data
+        // Mock data on error
         const mockInventory: InventoryItem[] = [
           {
             id: 1,
@@ -279,6 +292,8 @@ export function AgriculturalEngineerDashboard() {
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      // Ensure inventory is always an array even on error
+      setInventory([]);
     }
   };
 
@@ -293,9 +308,11 @@ export function AgriculturalEngineerDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setAdviceRequests(data);
+        // Handle different response formats - ensure we get an array
+        const requestsArray = Array.isArray(data) ? data : (data.data || data.requests || []);
+        setAdviceRequests(requestsArray);
       } else {
-        // Mock data
+        // Mock data on error
         const mockRequests: CustomerAdviceRequest[] = [
           {
             id: 1,
@@ -321,6 +338,8 @@ export function AgriculturalEngineerDashboard() {
       }
     } catch (error) {
       console.error('Error fetching advice requests:', error);
+      // Ensure adviceRequests is always an array even on error
+      setAdviceRequests([]);
     }
   };
 
@@ -1143,6 +1162,7 @@ export function AgriculturalEngineerDashboard() {
     </div>
   );
 }
+
 
 
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './ManagePlants.css';
 
 interface Plant {
@@ -99,11 +100,11 @@ interface PlantingCycle {
   status: 'planned' | 'planted' | 'growing' | 'harvested';
 }
 
-type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'accessories' | 'indoor' | 'other';
+type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'tree' | 'accessories' | 'indoor' | 'other';
 type ActiveTab = 'plants' | 'planting-cycles' | 'growth-tracking' | 'watering-fertilization' | 'health-management' | 'inventory-link' | 'reports' | 'classification' | 'growth-conditions' | 'location-management' | 'inspection-schedule' | 'waste-management' | 'demand-analysis' | 'permissions' | 'alerts';
 
 export function ManagePlants() {
-  const { user, isLoading, hasAccess } = useRequireRole('manager');
+  const { user, isLoading, hasAccess } = useRequireRole(['manager', 'agricultural_engineer']);
   const navigate = useNavigate();
   const [plants, setPlants] = useState<Plant[]>([]);
   const [plantingCycles, setPlantingCycles] = useState<PlantingCycle[]>([]);
@@ -160,8 +161,6 @@ export function ManagePlants() {
     quantity: '',
     season: '',
   });
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -279,52 +278,79 @@ export function ManagePlants() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const url = editingPlant 
-        ? `${API_BASE_URL}/plants/${editingPlant.id}`
-        : `${API_BASE_URL}/plants`;
+      const plantData = {
+        name: formData.name,
+        variety: formData.variety,
+        season: formData.season,
+        growth_duration: parseInt(formData.growthDuration) || 0,
+        price: formData.price,
+        description: formData.description,
+        imageUrl: formData.imageUrl,
+        category: formData.category,
+        isPopular: formData.isPopular,
+        quantity: parseInt(formData.quantity.toString()) || 0,
+        available: formData.isActive,
+        isActive: formData.isActive,
+        growth_stage: formData.growthStage,
+        inventory_status: formData.inventoryStatus,
+        cost: parseFloat(formData.cost) || 0,
+        revenue: parseFloat(formData.revenue) || 0,
+      };
 
-      const method = editingPlant ? 'PUT' : 'POST';
+      if (editingPlant) {
+        // Update existing plant using savePlantUpdate
+        const result = await savePlantUpdate(editingPlant.id, plantData);
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          variety: formData.variety,
-          season: formData.season,
-          growth_duration: parseInt(formData.growthDuration) || 0,
-          price: formData.price,
-          description: formData.description,
-          imageUrl: formData.imageUrl,
-          category: formData.category,
-          isPopular: formData.isPopular,
-          quantity: parseInt(formData.quantity.toString()) || 0,
-          isActive: formData.isActive,
-          growth_stage: formData.growthStage,
-          inventory_status: formData.inventoryStatus,
-          cost: parseFloat(formData.cost) || 0,
-          revenue: parseFloat(formData.revenue) || 0,
-        }),
-      });
+        if (result.success && result.data) {
+          // Update local state with returned data
+          setPlants(prev => prev.map(p => {
+            if (p.id === editingPlant.id) {
+              return { ...p, ...result.data };
+            }
+            return p;
+          }));
+          setSuccess('Plant updated successfully!');
+          setShowAddForm(false);
+          setEditingPlant(null);
+          resetForm();
+          fetchPlants();
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          throw new Error(result.error || 'Failed to update plant');
+        }
+      } else {
+        // Create new plant
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/plants`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(plantData),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save plant');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to save plant');
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Add new plant to local state
+          setPlants(prev => [...prev, result.data]);
+        }
+
+        setSuccess('Plant added successfully!');
+        setShowAddForm(false);
+        setEditingPlant(null);
+        resetForm();
+        fetchPlants();
+        setTimeout(() => setSuccess(''), 3000);
       }
-
-      setSuccess(editingPlant ? 'Plant updated successfully!' : 'Plant added successfully!');
-      setShowAddForm(false);
-      setEditingPlant(null);
-      resetForm();
-      fetchPlants();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to save plant. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -377,49 +403,49 @@ export function ManagePlants() {
 
   const handleUpdateGrowthStage = async (plantId: number, newStage: 'seed' | 'seedling' | 'ready_for_sale') => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}/growth-stage`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ growth_stage: newStage }),
-      });
+      const result = await savePlantUpdate(plantId, { growth_stage: newStage });
 
-      if (!response.ok) {
-        throw new Error('Failed to update growth stage');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, growthStage: newStage, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Growth stage updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        throw new Error(result.error || 'Failed to update growth stage');
       }
 
-      setSuccess('Growth stage updated successfully!');
       fetchPlants();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError('Failed to update growth stage. Please try again.');
+      setError(err.message || 'Failed to update growth stage. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateInventoryStatus = async (plantId: number, newStatus: 'growing' | 'ready_for_inventory' | 'in_inventory') => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}/inventory-status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ inventory_status: newStatus }),
-      });
+      const result = await savePlantUpdate(plantId, { inventory_status: newStatus });
 
-      if (!response.ok) {
-        throw new Error('Failed to update inventory status');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, inventoryStatus: newStatus, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Inventory status updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        throw new Error(result.error || 'Failed to update inventory status');
       }
 
-      setSuccess('Inventory status updated successfully!');
       fetchPlants();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError('Failed to update inventory status. Please try again.');
+      setError(err.message || 'Failed to update inventory status. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -475,31 +501,68 @@ export function ManagePlants() {
     }
   };
 
-  const handleUpdatePlantField = async (plantId: number, field: string, value: any) => {
+  // Reusable function to save plant updates to database
+  const savePlantUpdate = async (plantId: number, updateData: any): Promise<{ success: boolean; data?: any; error?: string }> => {
     try {
+      console.log(`[Frontend] Saving plant ${plantId} update:`, updateData);
+      
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify(updateData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update plant field');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
 
+      const result = await response.json();
+      console.log(`[Frontend] Save response:`, result);
+
+      if (result.success && result.data) {
+        return { success: true, data: result.data };
+      } else {
+        throw new Error(result.error || result.message || 'Failed to save plant');
+      }
+    } catch (err: any) {
+      console.error(`[Frontend] Error saving plant ${plantId}:`, err);
+      return { success: false, error: err.message || 'Failed to save plant' };
+    }
+  };
+
+  const handleUpdatePlantField = async (plantId: number, field: string, value: any) => {
+    try {
+      const result = await savePlantUpdate(plantId, { [field]: value });
+
+      if (result.success && result.data) {
+        // Update local state with returned data
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, [field]: value, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Plant updated successfully!');
+        setTimeout(() => setSuccess(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to update plant field');
+      }
+
+      // Refresh to ensure sync
       fetchPlants();
     } catch (err: any) {
-      setError('Failed to update plant field. Please try again.');
+      setError(err.message || 'Failed to update plant field. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateGrowthCondition = async (plantId: number, field: string, value: any) => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant) return;
 
@@ -508,28 +571,30 @@ export function ManagePlants() {
         [field]: value,
       };
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ growth_conditions: growthConditions }),
-      });
+      const result = await savePlantUpdate(plantId, { growth_conditions: growthConditions });
 
-      if (!response.ok) {
-        throw new Error('Failed to update growth condition');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, growthConditions, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Growth condition updated successfully!');
+        setTimeout(() => setSuccess(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to update growth condition');
       }
 
       fetchPlants();
     } catch (err: any) {
-      setError('Failed to update growth condition. Please try again.');
+      setError(err.message || 'Failed to update growth condition. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateTemperature = async (plantId: number, field: 'min' | 'max' | 'optimal', value: string) => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant) return;
 
@@ -543,28 +608,30 @@ export function ManagePlants() {
         temperature,
       };
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ growth_conditions: growthConditions }),
-      });
+      const result = await savePlantUpdate(plantId, { growth_conditions: growthConditions });
 
-      if (!response.ok) {
-        throw new Error('Failed to update temperature');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, growthConditions, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Temperature updated successfully!');
+        setTimeout(() => setSuccess(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to update temperature');
       }
 
       fetchPlants();
     } catch (err: any) {
-      setError('Failed to update temperature. Please try again.');
+      setError(err.message || 'Failed to update temperature. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateLocation = async (plantId: number, field: 'greenhouse' | 'row' | 'area', value: string) => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant) return;
 
@@ -573,28 +640,30 @@ export function ManagePlants() {
         [field]: value,
       };
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ location }),
-      });
+      const result = await savePlantUpdate(plantId, { location });
 
-      if (!response.ok) {
-        throw new Error('Failed to update location');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, location, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Location updated successfully!');
+        setTimeout(() => setSuccess(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to update location');
       }
 
       fetchPlants();
     } catch (err: any) {
-      setError('Failed to update location. Please try again.');
+      setError(err.message || 'Failed to update location. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateInspection = async (plantId: number, field: string, value: any) => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant) return;
 
@@ -609,28 +678,30 @@ export function ManagePlants() {
         inspectionSchedule.nextInspection = nextInspection.toISOString();
       }
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ inspection_schedule: inspectionSchedule }),
-      });
+      const result = await savePlantUpdate(plantId, { inspection_schedule: inspectionSchedule });
 
-      if (!response.ok) {
-        throw new Error('Failed to update inspection schedule');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, inspectionSchedule, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Inspection schedule updated successfully!');
+        setTimeout(() => setSuccess(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to update inspection schedule');
       }
 
       fetchPlants();
     } catch (err: any) {
-      setError('Failed to update inspection schedule. Please try again.');
+      setError(err.message || 'Failed to update inspection schedule. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleUpdateDemand = async (plantId: number, action: 'increase' | 'decrease') => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant) return;
 
@@ -644,54 +715,55 @@ export function ManagePlants() {
         recommendedProduction: newProduction,
       };
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ expected_demand: expectedDemand }),
-      });
+      const result = await savePlantUpdate(plantId, { expected_demand: expectedDemand });
 
-      if (!response.ok) {
-        throw new Error('Failed to update demand');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, expectedDemand, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess(`Production ${action === 'increase' ? 'increased' : 'decreased'} successfully!`);
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        throw new Error(result.error || 'Failed to update demand');
       }
 
-      setSuccess(`Production ${action === 'increase' ? 'increased' : 'decreased'} successfully!`);
       fetchPlants();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError('Failed to update demand. Please try again.');
+      setError(err.message || 'Failed to update demand. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleResolveAlert = async (plantId: number, alertIndex: number) => {
     try {
-      const token = localStorage.getItem('authToken');
       const plant = plants.find(p => p.id === plantId);
       if (!plant || !plant.alerts) return;
 
       const updatedAlerts = [...plant.alerts];
       updatedAlerts[alertIndex] = { ...updatedAlerts[alertIndex], resolved: true };
 
-      const response = await fetch(`${API_BASE_URL}/plants/${plantId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ alerts: updatedAlerts }),
-      });
+      const result = await savePlantUpdate(plantId, { alerts: updatedAlerts });
 
-      if (!response.ok) {
-        throw new Error('Failed to resolve alert');
+      if (result.success && result.data) {
+        setPlants(prev => prev.map(p => {
+          if (p.id === plantId) {
+            return { ...p, alerts: updatedAlerts, ...result.data };
+          }
+          return p;
+        }));
+        setSuccess('Alert resolved successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        throw new Error(result.error || 'Failed to resolve alert');
       }
 
-      setSuccess('Alert resolved successfully!');
       fetchPlants();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError('Failed to resolve alert. Please try again.');
+      setError(err.message || 'Failed to resolve alert. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -840,7 +912,7 @@ export function ManagePlants() {
     return null;
   }
 
-  const categories: PlantCategory[] = ['all', 'vegetable', 'fruit', 'flower', 'medicinal', 'accessories', 'indoor', 'other'];
+  const categories: PlantCategory[] = ['all', 'vegetable', 'fruit', 'flower', 'medicinal', 'tree', 'accessories', 'indoor', 'other'];
   const seasons = ['Spring', 'Summer', 'Fall', 'Winter', 'All Year'];
 
   return (
@@ -2148,3 +2220,4 @@ export function ManagePlants() {
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './OrderManagement.css';
 
 interface OrderItem {
@@ -155,8 +156,27 @@ export function OrderManagement() {
   });
   const [showEditThreshold, setShowEditThreshold] = useState(false);
   const [newThreshold, setNewThreshold] = useState<string>('');
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const [showApprovalAlert, setShowApprovalAlert] = useState(false);
+  const [showRejectAlert, setShowRejectAlert] = useState(false);
+  const [showPostponeAlert, setShowPostponeAlert] = useState(false);
+  const [showCompensationAlert, setShowCompensationAlert] = useState(false);
+  const [compensationMessage, setCompensationMessage] = useState<string>('');
+  const [alertCompensationType, setAlertCompensationType] = useState<'discount' | 'gift'>('discount');
+  
+  // Compensation modal state
+  const [showCompensationModal, setShowCompensationModal] = useState(false);
+  const [compensationOrderId, setCompensationOrderId] = useState<number | null>(null);
+  const [compensationType, setCompensationType] = useState<'discount' | 'gift'>('discount');
+  const [discountPercentage, setDiscountPercentage] = useState<string>('25');
+  const [selectedPlantId, setSelectedPlantId] = useState<string>('');
+  const [giftQuantity, setGiftQuantity] = useState<string>('1');
+  const [availablePlants, setAvailablePlants] = useState<any[]>([]);
+  const [isLoadingPlants, setIsLoadingPlants] = useState(false);
+  
+  // Postpone modal state
+  const [showPostponeModal, setShowPostponeModal] = useState(false);
+  const [postponeOrderId, setPostponeOrderId] = useState<number | null>(null);
+  const [newDeliveryDate, setNewDeliveryDate] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -164,8 +184,18 @@ export function OrderManagement() {
       fetchInventory();
       fetchEmployeesCount();
       fetchWebsiteVisitors();
+      fetchAvailablePlants();
     }
   }, [isLoading, hasAccess]);
+
+  // Debug: Monitor modal states
+  useEffect(() => {
+    console.log('🔍 Compensation modal state changed:', showCompensationModal);
+  }, [showCompensationModal]);
+
+  useEffect(() => {
+    console.log('🔍 Postpone modal state changed:', showPostponeModal);
+  }, [showPostponeModal]);
 
   useEffect(() => {
     if (!Array.isArray(orders)) return;
@@ -196,7 +226,7 @@ export function OrderManagement() {
     setIsLoadingOrders(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders`, {
+      const response = await fetch(`${API_BASE_URL}/orders`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -334,7 +364,7 @@ export function OrderManagement() {
   const fetchInventory = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/inventory`, {
+      const response = await fetch(`${API_BASE_URL}/inventory`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -362,7 +392,7 @@ export function OrderManagement() {
   const fetchEmployeesCount = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/employees/count`, {
+      const response = await fetch(`${API_BASE_URL}/employees/count`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -382,10 +412,42 @@ export function OrderManagement() {
     }
   };
 
+  const fetchAvailablePlants = async () => {
+    setIsLoadingPlants(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/plants`);
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🌱 Plants API response:', result);
+        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+          console.log('✅ Setting available plants:', result.data.length, 'plants');
+          // Filter out any invalid plants and ensure we have the required fields
+          const validPlants = result.data.filter((plant: any) => 
+            (plant.PlantID || plant.id || plant.ID) && 
+            (plant.PlantName || plant.name || plant.Name)
+          );
+          setAvailablePlants(validPlants);
+          console.log('✅ Valid plants:', validPlants.length);
+        } else {
+          console.warn('⚠️ Plants data is not an array or is empty:', result);
+          setAvailablePlants([]);
+        }
+      } else {
+        console.error('❌ Failed to fetch plants:', response.status, response.statusText);
+        setAvailablePlants([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching plants:', error);
+      setAvailablePlants([]);
+    } finally {
+      setIsLoadingPlants(false);
+    }
+  };
+
   const fetchWebsiteVisitors = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/analytics/visitors`, {
+      const response = await fetch(`${API_BASE_URL}/analytics/visitors`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -411,7 +473,7 @@ export function OrderManagement() {
   const fetchOrderDetails = async (orderId: number) => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -459,7 +521,7 @@ export function OrderManagement() {
       }
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -484,12 +546,24 @@ export function OrderManagement() {
             }
           }
         }
-        // Show specific success message for approval
+        // Show alert for 3 seconds
         setSuccess('Order approved successfully!');
+        setShowApprovalAlert(true);
+        setTimeout(() => {
+          setShowApprovalAlert(false);
+        }, 3000);
+      } else if (newStatus === 'cancelled') {
+        // Show reject alert for 3 seconds
+        setSuccess('Order rejected successfully!');
+        setShowRejectAlert(true);
+        setTimeout(() => {
+          setShowRejectAlert(false);
+        }, 3000);
       } else {
         setSuccess(`Order status updated to ${newStatus} successfully!`);
       }
       
+      // Refresh orders to show updated status
       fetchAllOrders();
       fetchInventory();
       if (selectedOrder?.id === orderId) {
@@ -503,11 +577,226 @@ export function OrderManagement() {
     }
   };
 
-  const handleProblemResolution = async (orderId: number, action: 'modify' | 'compensate' | 'cancel' | 'postpone', details?: string) => {
-    setProcessingOrderId(orderId);
+  const handleApplyPostpone = async () => {
+    console.log('📅 handleApplyPostpone called', { postponeOrderId, newDeliveryDate });
+    
+    if (!postponeOrderId || !newDeliveryDate) {
+      console.log('❌ Missing postponeOrderId or newDeliveryDate');
+      setError('Please select a delivery date');
+      return;
+    }
+    
+    setProcessingOrderId(postponeOrderId);
+    setError('');
+    setSuccess('');
+    
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/resolve`, {
+      console.log('📤 Sending postpone request:', {
+        url: `${API_BASE_URL}/orders/${postponeOrderId}/postpone`,
+        newDeliveryDate
+      });
+      
+      const response = await fetch(`${API_BASE_URL}/orders/${postponeOrderId}/postpone`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          newDeliveryDate: newDeliveryDate
+        }),
+      });
+
+      console.log('📥 Postpone response status:', response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Postpone result:', result);
+        
+        // Create message in English
+        const message = `Order postponed successfully! New delivery date: ${result.newDeliveryDate || newDeliveryDate}`;
+        setSuccess(message);
+        setShowPostponeAlert(true);
+        console.log('✅ Show postpone alert set to true');
+        
+        setTimeout(() => {
+          console.log('⏰ Hiding postpone alert after 3 seconds');
+          setShowPostponeAlert(false);
+        }, 3000);
+        
+        setShowPostponeModal(false);
+        fetchAllOrders();
+        if (selectedOrder?.id === postponeOrderId) {
+          fetchOrderDetails(postponeOrderId);
+        }
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Postpone failed:', response.status, errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to postpone order delivery date' };
+        }
+        setError(errorData.error || 'Failed to postpone order delivery date');
+      }
+    } catch (error) {
+      console.error('❌ Postpone error:', error);
+      setError('Failed to postpone order delivery date');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const handleApplyCompensation = async () => {
+    if (!compensationOrderId) return;
+    
+    setProcessingOrderId(compensationOrderId);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/orders/${compensationOrderId}/compensate`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: compensationType,
+          discountPercentage: compensationType === 'discount' ? parseFloat(discountPercentage) : null,
+          plantId: compensationType === 'gift' ? parseInt(selectedPlantId) : null,
+          quantity: compensationType === 'gift' ? parseInt(giftQuantity) : null
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Compensation result:', result);
+        
+        let message = '';
+        if (compensationType === 'discount') {
+          // Create message in English with the new price after discount
+          const newPrice = result.newTotal?.toFixed(2) || 'N/A';
+          message = `Discount applied successfully! New price after discount: ₪${newPrice}`;
+        } else {
+          // Create message in English for gift compensation
+          message = `Message sent to employee to add gift with the order for the customer`;
+        }
+        
+        console.log('📝 Setting compensation message:', message);
+        setCompensationMessage(message);
+        setAlertCompensationType(compensationType); // Save the type for the alert
+        setSuccess(message);
+        setShowCompensationAlert(true);
+        console.log('✅ Show compensation alert set to true, type:', compensationType);
+        
+        // Hide alert after 3 seconds
+        setTimeout(() => {
+          console.log('⏰ Hiding compensation alert after 3 seconds');
+          setShowCompensationAlert(false);
+          setCompensationMessage('');
+        }, 3000);
+        
+        setShowCompensationModal(false);
+        fetchAllOrders();
+        if (selectedOrder?.id === compensationOrderId) {
+          fetchOrderDetails(compensationOrderId);
+        }
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Compensation failed:', response.status, errorText);
+        setError('Failed to compensate customer');
+      }
+    } catch (error) {
+      setError('Failed to compensate customer');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const handleProblemResolution = async (orderId: number, action: 'modify' | 'compensate' | 'cancel' | 'postpone', details?: string) => {
+    console.log('🔧 handleProblemResolution called:', { orderId, action });
+    
+    // For modal actions, don't set processing state immediately
+    if (action === 'compensate' || action === 'postpone') {
+      setError('');
+      setSuccess('');
+    } else {
+    setProcessingOrderId(orderId);
+      setError('');
+      setSuccess('');
+    }
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // If action is 'cancel', update order status to 'cancelled'
+      if (action === 'cancel') {
+        const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: 'cancelled' }),
+        });
+
+        if (response.ok) {
+          setSuccess('Order cancelled successfully!');
+          setShowRejectAlert(true);
+          setTimeout(() => {
+            setShowRejectAlert(false);
+          }, 3000);
+          fetchAllOrders();
+          if (selectedOrder?.id === orderId) {
+            fetchOrderDetails(orderId);
+          }
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          setError('Failed to cancel order');
+        }
+      } else if (action === 'postpone') {
+        // Open postpone modal
+        console.log('📅 Opening postpone modal for order:', orderId);
+        setProcessingOrderId(null); // Reset processing state first
+        setPostponeOrderId(orderId);
+        // Set default date to 1 month from now
+        const defaultDate = new Date();
+        defaultDate.setMonth(defaultDate.getMonth() + 1);
+        const defaultDateString = defaultDate.toISOString().split('T')[0];
+        setNewDeliveryDate(defaultDateString);
+        console.log('📅 Default date set to:', defaultDateString);
+        setShowPostponeModal(true);
+        console.log('✅ Postpone modal state set to true');
+      } else if (action === 'compensate') {
+        // Open compensation modal
+        console.log('🎁 Opening compensation modal for order:', orderId);
+        setProcessingOrderId(null); // Reset processing state first
+        setCompensationOrderId(orderId);
+        setCompensationType('discount');
+        setDiscountPercentage('25');
+        setSelectedPlantId('');
+        setGiftQuantity('1');
+        // Ensure plants are loaded when modal opens
+        if (availablePlants.length === 0) {
+          console.log('🌱 Loading plants...');
+          fetchAvailablePlants();
+        }
+        setShowCompensationModal(true);
+        console.log('✅ Compensation modal state set to true');
+      } else if (action === 'modify') {
+        // Navigate to order edit page
+        console.log('✏️ Navigating to order edit page for order:', orderId);
+        navigate(`/order-edit/${orderId}`);
+        setProcessingOrderId(null); // Reset processing ID
+      } else {
+        // For other actions, use the resolve endpoint
+        const response = await fetch(`${API_BASE_URL}/orders/${orderId}/resolve`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -522,6 +811,7 @@ export function OrderManagement() {
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError('Failed to resolve problem');
+        }
       }
     } catch (error) {
       setError('Failed to resolve problem');
@@ -616,6 +906,110 @@ export function OrderManagement() {
 
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
+        
+        {/* Approval Alert Toast */}
+        {showApprovalAlert && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: '#10b981',
+              color: 'white',
+              padding: '1rem 1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              zIndex: 10000,
+              fontSize: '1rem',
+              fontWeight: '600',
+              animation: 'slideIn 0.3s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>✅</span>
+            <span>Order approved successfully!</span>
+          </div>
+        )}
+
+        {/* Reject Alert Toast */}
+        {showRejectAlert && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: '#ef4444',
+              color: 'white',
+              padding: '1rem 1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              zIndex: 10000,
+              fontSize: '1rem',
+              fontWeight: '600',
+              animation: 'slideIn 0.3s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>❌</span>
+            <span>Order rejected successfully!</span>
+          </div>
+        )}
+
+        {/* Postpone Alert Toast */}
+        {showPostponeAlert && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: '#3b82f6',
+              color: 'white',
+              padding: '1rem 1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              zIndex: 10000,
+              fontSize: '1rem',
+              fontWeight: '600',
+              animation: 'slideIn 0.3s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>📅</span>
+            <span>Order postponed successfully!</span>
+          </div>
+        )}
+
+        {/* Compensation Alert Toast */}
+        {showCompensationAlert && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: alertCompensationType === 'discount' ? '#10b981' : '#f59e0b',
+              color: 'white',
+              padding: '1rem 1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              zIndex: 10000,
+              fontSize: '1rem',
+              fontWeight: '600',
+              animation: 'slideIn 0.3s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>{alertCompensationType === 'discount' ? '✅' : '🎁'}</span>
+            <span>{compensationMessage || 'Compensation applied successfully!'}</span>
+          </div>
+        )}
 
         {/* Orders Statistics */}
         <div className="orders-statistics">
@@ -1059,21 +1453,36 @@ export function OrderManagement() {
                         </button>
                         <button
                           className="btn-compensate"
-                          onClick={() => handleProblemResolution(order.id, 'compensate')}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('🎁 Compensate button clicked for order:', order.id);
+                            handleProblemResolution(order.id, 'compensate');
+                          }}
                           disabled={processingOrderId === order.id}
                         >
                           Compensate Customer
                         </button>
                         <button
                           className="btn-cancel"
-                          onClick={() => handleProblemResolution(order.id, 'cancel')}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('❌ Cancel button clicked for order:', order.id);
+                            handleProblemResolution(order.id, 'cancel');
+                          }}
                           disabled={processingOrderId === order.id}
                         >
                           Cancel Order
                         </button>
                         <button
                           className="btn-postpone"
-                          onClick={() => handleProblemResolution(order.id, 'postpone')}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('📅 Postpone button clicked for order:', order.id);
+                            handleProblemResolution(order.id, 'postpone');
+                          }}
                           disabled={processingOrderId === order.id}
                         >
                           Postpone
@@ -1179,7 +1588,7 @@ export function OrderManagement() {
                 </div>
 
                 <div className="details-section">
-                    <h3>Change Order Status</h3>
+                    <h3>Change Order Progress</h3>
                   <div className="status-controls">
                     <select
                       className="status-select"
@@ -1204,6 +1613,313 @@ export function OrderManagement() {
             </div>
           )}
       </div>
+
+      {/* Compensation Modal */}
+      {showCompensationModal && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowCompensationModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: '0 0 1rem 0', color: '#047857' }}>Compensate Customer</h2>
+              <p style={{ color: '#64748b', margin: 0 }}>Choose compensation method:</p>
+    </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
+                Compensation Type:
+              </label>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="discount"
+                    checked={compensationType === 'discount'}
+                    onChange={(e) => setCompensationType(e.target.value as 'discount' | 'gift')}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Discount
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="gift"
+                    checked={compensationType === 'gift'}
+                    onChange={(e) => setCompensationType(e.target.value as 'discount' | 'gift')}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Gift (Plant)
+                </label>
+              </div>
+            </div>
+
+            {compensationType === 'discount' && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
+                  Discount Percentage:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={discountPercentage}
+                  onChange={(e) => setDiscountPercentage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+                <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
+                  Enter discount percentage (1-100%)
+                </p>
+              </div>
+            )}
+
+            {compensationType === 'gift' && (
+              <>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
+                    Select Plant:
+                  </label>
+                  <select
+                    value={selectedPlantId}
+                    onChange={(e) => setSelectedPlantId(e.target.value)}
+                    disabled={isLoadingPlants}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      cursor: isLoadingPlants ? 'wait' : 'pointer',
+                      opacity: isLoadingPlants ? 0.6 : 1
+                    }}
+                  >
+                    <option value="">
+                      {isLoadingPlants ? 'Loading plants...' : '-- Select Plant --'}
+                    </option>
+                    {availablePlants.length > 0 ? (
+                      availablePlants.map((plant) => {
+                        const plantId = plant.PlantID || plant.id || plant.ID;
+                        const plantName = plant.PlantName || plant.name || plant.Name || 'Unknown Plant';
+                        return (
+                          <option key={plantId} value={String(plantId)}>
+                            {plantName}
+                          </option>
+                        );
+                      })
+                    ) : !isLoadingPlants && (
+                      <option value="" disabled>No plants available</option>
+                    )}
+                  </select>
+                  {isLoadingPlants && (
+                    <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
+                      Loading plants from database...
+                    </p>
+                  )}
+                  {!isLoadingPlants && availablePlants.length === 0 && (
+                    <p style={{ margin: '0.5rem 0 0 0', color: '#f59e0b', fontSize: '0.875rem' }}>
+                      ⚠️ No plants available. Please check the database or add plants first.
+                    </p>
+                  )}
+                  {!isLoadingPlants && availablePlants.length > 0 && (
+                    <p style={{ margin: '0.5rem 0 0 0', color: '#10b981', fontSize: '0.875rem' }}>
+                      ✓ {availablePlants.length} plant(s) available
+                    </p>
+                  )}
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
+                    Quantity:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={giftQuantity}
+                    onChange={(e) => setGiftQuantity(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
+              <button
+                onClick={() => setShowCompensationModal(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyCompensation}
+                disabled={
+                  processingOrderId === compensationOrderId ||
+                  (compensationType === 'discount' && (!discountPercentage || parseFloat(discountPercentage) <= 0 || parseFloat(discountPercentage) > 100)) ||
+                  (compensationType === 'gift' && (!selectedPlantId || !giftQuantity || parseInt(giftQuantity) <= 0))
+                }
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: compensationType === 'discount' ? '#10b981' : '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  opacity: (
+                    processingOrderId === compensationOrderId ||
+                    (compensationType === 'discount' && (!discountPercentage || parseFloat(discountPercentage) <= 0 || parseFloat(discountPercentage) > 100)) ||
+                    (compensationType === 'gift' && (!selectedPlantId || !giftQuantity || parseInt(giftQuantity) <= 0))
+                  ) ? 0.5 : 1
+                }}
+              >
+                {processingOrderId === compensationOrderId ? 'Applying...' : 'Apply Compensation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Postpone Modal */}
+      {showPostponeModal && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowPostponeModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: '0 0 1rem 0', color: '#047857' }}>Postpone Order Delivery</h2>
+              <p style={{ color: '#64748b', margin: 0 }}>Select the new delivery date:</p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
+                New Delivery Date:
+              </label>
+              <input
+                type="date"
+                value={newDeliveryDate}
+                onChange={(e) => setNewDeliveryDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+              <p style={{ margin: '0.5rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
+                Select the date you want to postpone the delivery to
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
+              <button
+                onClick={() => setShowPostponeModal(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyPostpone}
+                disabled={processingOrderId === postponeOrderId || !newDeliveryDate}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  opacity: (processingOrderId === postponeOrderId || !newDeliveryDate) ? 0.5 : 1
+                }}
+              >
+                {processingOrderId === postponeOrderId ? 'Postponing...' : 'Postpone Delivery'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

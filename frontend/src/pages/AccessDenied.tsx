@@ -21,7 +21,7 @@ export function AccessDenied() {
           You don't have permission to access this page.
         </p>
         <p className="access-denied-details">
-          This page is restricted to users with the <strong>Manager</strong> role.
+          You don't have the required permissions to access this page.
           {user && (
             <span className="current-role">
               Your current role: <strong>{user.role || 'None'}</strong>

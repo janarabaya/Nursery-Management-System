@@ -1,55 +1,72 @@
-# Plant Nursery Project
+# User Management CRUD Project
 
-مشروع مشتل النباتات - جميع الملفات في مكان واحد
+Complete project structure with Node.js/Express backend and Microsoft Access database using node-adodb.
 
-## هيكل المشروع
+## Project Structure
 
 ```
-plant-nursery-project/
-├── frontend/          # React Frontend (من plant-frontend)
-├── backend/           # Node.js Backend (من plant-backend)
-└── README.md          # هذا الملف
+project/
+ ├─ backend/
+ │   ├─ server.js
+ │   ├─ package.json
+ │   └─ database.accdb  (add your Access database file here)
+ └─ frontend/
+     └─ index.html
 ```
 
-## الخطوات المتبقية
+## Setup Instructions
 
-1. **إغلاق جميع البرامج التي تستخدم plant-frontend:**
-   - إغلاق VS Code أو أي IDE
-   - إيقاف سيرفر التطوير إذا كان يعمل
-   - إغلاق أي terminal windows
+### Backend Setup
 
-2. **نقل plant-frontend:**
-   ```powershell
-   cd "C:\Users\ayedr\OneDrive\Desktop\The Work\edentist"
-   Move-Item -Path "plant-frontend" -Destination "plant-nursery-project\frontend" -Force
-   ```
-
-3. **تحديث المسارات في الكود:**
-   - تحديث أي مراجع لـ `plant-frontend` إلى `plant-nursery-project/frontend`
-   - تحديث أي مراجع لـ `plant-backend` إلى `plant-nursery-project/backend`
-
-## تشغيل المشروع
-
-### Backend
+1. Navigate to the backend directory:
 ```bash
-cd plant-nursery-project/backend
-npm install
-npm run dev
+cd backend
 ```
 
-### Frontend
+2. Install dependencies:
 ```bash
-cd plant-nursery-project/frontend
 npm install
+```
+
+3. Create your Microsoft Access database file `database.accdb` in the `backend` folder with a table named `users`:
+   - Column: `id` (AutoNumber, Primary Key)
+   - Column: `name` (Text)
+   - Column: `age` (Number)
+
+4. Start the server:
+```bash
 npm start
 ```
 
-## قاعدة البيانات
+The server will run on `http://localhost:3000`
 
-مسار قاعدة البيانات Access:
-```
-C:\Users\ayedr\OneDrive\Desktop\jana\Last Semester Courses\Graguation Project\NurseryDB1.accdb
-```
+### Frontend Setup
 
-يتم تكوينه في: `backend/src/config/accessDb.ts`
+1. Open `frontend/index.html` in your web browser
+2. Make sure the backend server is running on port 3000
 
+## API Endpoints
+
+- **POST** `/add` - Add a new user
+  - Body: `{ "name": "John", "age": 25 }`
+
+- **PUT** `/update/:id` - Update a user by ID
+  - Body: `{ "name": "Jane", "age": 30 }`
+
+- **DELETE** `/delete/:id` - Delete a user by ID
+
+- **GET** `/users` - Get all users
+
+## Dependencies
+
+### Backend
+- express
+- node-adodb
+- cors
+- body-parser
+
+## Notes
+
+- Make sure Microsoft Access Database Engine (ACE.OLEDB.12.0) is installed on your system
+- The database file `database.accdb` should be placed in the `backend` folder
+- The `users` table must have columns: `id`, `name`, `age`

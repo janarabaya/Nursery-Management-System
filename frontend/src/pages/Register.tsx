@@ -39,8 +39,8 @@ const roleOptions: RoleOption[] = [
   },
   {
     value: 'agriculture_engineer',
-    label: '🌿 Agriculture Engineer',
-    description: 'Oversee plant health and agricultural planning',
+    label: '🌾 Agricultural Engineer',
+    description: 'Provide agricultural expertise and plant health management',
   },
   {
     value: 'shippment_company',
@@ -158,9 +158,9 @@ export function Register() {
 
       // Try to call the API endpoint
       // Use direct backend URL
-      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const backendUrl = process.env.REACT_APP_API_URL || '/api';
       let response: Response;
-      let fetchUrl = `${backendUrl}/api/auth/register`; // Use direct backend URL
+      let fetchUrl = `${backendUrl}/auth/register`; // Use proxy
       
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/dccc61c2-2b5f-4f9b-9a16-56733fd50ec6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Register.tsx:145',message:'Attempting registration via proxy',data:{fetchUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { API_BASE_URL } from '../config/api';
 import './Settings.css';
 
 interface ManagerProfile {
@@ -99,14 +100,14 @@ export function Settings() {
     ],
     delivery_company: [
       'View Assigned Orders',
-      'Update Order Status',
+      'Update Order Progress',
       'View Delivery Routes',
       'Mark as Delivered',
       'View Customer Addresses',
     ],
     supplier: [
       'View Orders',
-      'Update Order Status',
+      'Update Order Progress',
       'View Inventory Requests',
       'Submit Delivery Dates',
       'View Payment Information',
@@ -131,8 +132,6 @@ export function Settings() {
     theme: theme,
     language: language,
   });
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -1105,3 +1104,4 @@ export function Settings() {
     </div>
   );
 }
+

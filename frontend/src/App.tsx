@@ -36,6 +36,7 @@ import { EmployeeDashboard } from './pages/EmployeeDashboard';
 import { AgriculturalEngineerDashboard } from './pages/AgriculturalEngineerDashboard';
 import { SupplierDashboard } from './pages/SupplierDashboard';
 import { DeliveryCompanyDashboard } from './pages/DeliveryCompanyDashboard';
+import { OrderEdit } from './pages/OrderEdit';
 
 function AppShell() {
   const location = useLocation();
@@ -76,14 +77,21 @@ function AppShell() {
           />
           <Route path="/orders" element={<Orders />} />
           <Route path="/inventory" element={<Inventory />} />
-          <Route path="/plant-health" element={<PlantHealth />} />
+          <Route 
+            path="/plant-health" 
+            element={
+              <ProtectedRoute requiredRole={['manager', 'agricultural_engineer']}>
+                <PlantHealth />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/employees" element={<Employees />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route 
             path="/reports" 
             element={
-              <ProtectedRoute requiredRole="manager">
+              <ProtectedRoute requiredRole={['manager', 'agricultural_engineer']}>
                 <Reports />
               </ProtectedRoute>
             } 
@@ -98,9 +106,17 @@ function AppShell() {
             } 
           />
           <Route 
-            path="/simple-plant-management" 
+            path="/order-edit/:id" 
             element={
               <ProtectedRoute requiredRole="manager">
+                <OrderEdit />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/simple-plant-management" 
+            element={
+              <ProtectedRoute requiredRole={['manager', 'agricultural_engineer']}>
                 <SimplePlantManagement />
               </ProtectedRoute>
             } 
@@ -108,7 +124,7 @@ function AppShell() {
           <Route 
             path="/plant-management" 
             element={
-              <ProtectedRoute requiredRole="manager">
+              <ProtectedRoute requiredRole={['manager', 'agricultural_engineer']}>
                 <ManagePlants />
               </ProtectedRoute>
             } 

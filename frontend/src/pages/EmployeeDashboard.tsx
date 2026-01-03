@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './EmployeeDashboard.css';
 
 interface Order {
@@ -83,8 +84,6 @@ export function EmployeeDashboard() {
     department: '',
     position: '',
   });
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -891,6 +890,7 @@ export function EmployeeDashboard() {
     </div>
   );
 }
+
 
 
 

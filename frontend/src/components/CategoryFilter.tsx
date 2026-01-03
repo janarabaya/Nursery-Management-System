@@ -1,6 +1,6 @@
 import './CategoryFilter.css';
 
-export type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'accessories' | 'indoor' | 'other';
+export type PlantCategory = 'all' | 'vegetable' | 'fruit' | 'flower' | 'medicinal' | 'tree' | 'accessories' | 'indoor' | 'other';
 
 interface CategoryFilterProps {
   categories: { value: PlantCategory; label: string }[];

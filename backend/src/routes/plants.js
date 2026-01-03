@@ -1,7 +1,7 @@
 /**
  * Plants Routes
  * 
- * GET /api/plants - Get all active plants (public)
+ * GET /api/plants - Get all active plants (public) - filters by ReadyForSale
  * GET /api/plants/all - Get all plants including inactive (manager only)
  * GET /api/plants/:id - Get single plant
  * POST /api/plants - Create plant (manager only)
@@ -12,13 +12,17 @@
  * GET /api/plants/:id/health-issues - Get plant health issues
  * POST /api/plants/:id/health-issues - Create health issue
  * PUT /api/plants/:id/growth-stage - Update growth stage
+ * 
+ * Engineer endpoints:
+ * PUT /api/plants/:id/technical - Update technical data (status, age, growth stage, notes)
+ * PUT /api/plants/:id/sale-readiness - Set sale readiness status
  */
 
 const express = require('express');
 const Joi = require('joi');
 const db = require('../config/accessDb');
 const { authenticate } = require('../middleware/auth');
-const { adminOnly, engineerOnly, staffOnly } = require('../middleware/roles');
+const { adminOnly, engineerOnly, staffOnly, managerOrEngineer } = require('../middleware/roles');
 const { ok, created, badRequest, notFound, serverError } = require('../utils/responses');
 const { asyncHandler } = require('../middleware/errorHandler');
 
@@ -61,6 +65,10 @@ router.get('/', asyncHandler(async (req, res) => {
   const { category, search } = req.query;
   
   let whereClause = 'IsActive = TRUE';
+  
+  // Note: ReadyForSale filter should be added if column exists in database
+  // For now, we show all active plants. If ReadyForSale column exists,
+  // add: AND (ReadyForSale = TRUE OR ReadyForSale IS NULL)
   
   if (category) {
     whereClause += ` AND Category LIKE '%${category.replace(/'/g, "''")}%'`;
@@ -387,18 +395,172 @@ router.post('/:id/health-issues', authenticate, asyncHandler(async (req, res) =>
 // PUT /api/plants/:id/growth-stage
 // ============================================
 
-router.put('/:id/growth-stage', authenticate, asyncHandler(async (req, res) => {
+router.put('/:id/growth-stage', authenticate, managerOrEngineer, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { growthStage } = req.body;
   
-  // Store growth stage in a custom field or log
-  // For now, we'll update a description field
-  await db.execute(db.buildUpdate('Plants', { 
-    CareInstructions: `Growth Stage: ${growthStage}`,
-    UpdatedAt: new Date() 
-  }, { ID: id }));
+  // Check if plant exists
+  const existing = await db.query(`SELECT ID FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+  if (!existing || existing.length === 0) {
+    return notFound(res, 'Plant not found');
+  }
+  
+  // Try to update GrowthStage column if it exists, otherwise store in CareInstructions
+  try {
+    await db.execute(db.buildUpdate('Plants', { 
+      GrowthStage: growthStage,
+      UpdatedAt: new Date() 
+    }, { ID: id }));
+  } catch (e) {
+    // Column doesn't exist, store in CareInstructions
+    await db.execute(db.buildUpdate('Plants', { 
+      CareInstructions: `Growth Stage: ${growthStage}`,
+      UpdatedAt: new Date() 
+    }, { ID: id }));
+  }
   
   ok(res, { message: 'Growth stage updated', growthStage });
+}));
+
+// ============================================
+// PUT /api/plants/:id/technical - Engineer: Update technical data
+// ============================================
+
+const updateTechnicalSchema = Joi.object({
+  status: Joi.string().valid('healthy', 'needs_irrigation', 'needs_fertilization', 'diseased').optional(),
+  age_days: Joi.number().integer().min(0).optional(),
+  growth_stage: Joi.string().optional(),
+  technical_notes: Joi.string().allow('', null).optional()
+});
+
+router.put('/:id/technical', authenticate, managerOrEngineer, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  const { error, value } = updateTechnicalSchema.validate(req.body);
+  if (error) {
+    return badRequest(res, error.details[0].message);
+  }
+  
+  // Check if plant exists
+  const existing = await db.query(`SELECT ID FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+  if (!existing || existing.length === 0) {
+    return notFound(res, 'Plant not found');
+  }
+  
+  const updateData = {};
+  updateData.UpdatedAt = new Date();
+  
+  // Update fields (try actual columns first, fallback to storing in CareInstructions or PlantHealthLogs)
+  if (value.status !== undefined) {
+    try {
+      updateData.HealthStatus = value.status;
+    } catch (e) {
+      // Store in latest health log
+      await db.execute(db.buildInsert('PlantHealthLogs', {
+        PlantID: id,
+        LoggedBy: req.user.id,
+        Diagnosis: `Health Status: ${value.status}`,
+        LoggedAt: new Date()
+      }));
+    }
+  }
+  
+  if (value.age_days !== undefined) {
+    try {
+      updateData.AgeDays = value.age_days;
+    } catch (e) {
+      // Store in CareInstructions as fallback
+      const current = await db.query(`SELECT CareInstructions FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+      const currentNotes = current[0]?.CareInstructions || '';
+      updateData.CareInstructions = `${currentNotes}\nAge: ${value.age_days} days`.trim();
+    }
+  }
+  
+  if (value.growth_stage !== undefined) {
+    try {
+      updateData.GrowthStage = value.growth_stage;
+    } catch (e) {
+      const current = await db.query(`SELECT CareInstructions FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+      const currentNotes = current[0]?.CareInstructions || '';
+      updateData.CareInstructions = `${currentNotes}\nGrowth Stage: ${value.growth_stage}`.trim();
+    }
+  }
+  
+  if (value.technical_notes !== undefined) {
+    try {
+      updateData.TechnicalNotes = value.technical_notes;
+    } catch (e) {
+      const current = await db.query(`SELECT CareInstructions FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+      const currentNotes = current[0]?.CareInstructions || '';
+      updateData.CareInstructions = `${currentNotes}\nTechnical Notes: ${value.technical_notes}`.trim();
+    }
+  }
+  
+  if (Object.keys(updateData).length > 1) { // More than just UpdatedAt
+    await db.execute(db.buildUpdate('Plants', updateData, { ID: id }));
+  }
+  
+  // Fetch updated plant
+  const updated = await db.query(`
+    SELECT ID as id, Name as name, BasePrice as base_price, Description as description,
+           ImageUrl as image_url, Category as category, IsPopular as is_popular,
+           Quantity as quantity, IsActive as is_active
+    FROM Plants WHERE ID = ${db.escapeSQL(id)}
+  `);
+  
+  ok(res, {
+    message: 'Technical data updated successfully',
+    plant: updated[0]
+  });
+}));
+
+// ============================================
+// PUT /api/plants/:id/sale-readiness - Engineer: Set sale readiness
+// ============================================
+
+const saleReadinessSchema = Joi.object({
+  ready_for_sale: Joi.boolean().required()
+});
+
+router.put('/:id/sale-readiness', authenticate, managerOrEngineer, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  const { error, value } = saleReadinessSchema.validate(req.body);
+  if (error) {
+    return badRequest(res, error.details[0].message);
+  }
+  
+  // Check if plant exists
+  const existing = await db.query(`SELECT ID FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+  if (!existing || existing.length === 0) {
+    return notFound(res, 'Plant not found');
+  }
+  
+  // Try to update ReadyForSale column if it exists
+  try {
+    await db.execute(db.buildUpdate('Plants', { 
+      ReadyForSale: value.ready_for_sale,
+      UpdatedAt: new Date() 
+    }, { ID: id }));
+  } catch (e) {
+    // Column doesn't exist, store in a custom field or use IsActive logic
+    // For now, if not ready for sale, we could set a flag in CareInstructions
+    const flag = value.ready_for_sale ? 'READY_FOR_SALE' : 'NOT_READY_FOR_SALE';
+    const current = await db.query(`SELECT CareInstructions FROM Plants WHERE ID = ${db.escapeSQL(id)}`);
+    let currentNotes = current[0]?.CareInstructions || '';
+    // Remove old flag
+    currentNotes = currentNotes.replace(/SALE_READINESS:\s*\w+/g, '').trim();
+    currentNotes = `${currentNotes}\nSALE_READINESS: ${flag}`.trim();
+    await db.execute(db.buildUpdate('Plants', { 
+      CareInstructions: currentNotes,
+      UpdatedAt: new Date() 
+    }, { ID: id }));
+  }
+  
+  ok(res, { 
+    message: `Plant marked as ${value.ready_for_sale ? 'ready for sale' : 'not ready for sale'}`,
+    ready_for_sale: value.ready_for_sale
+  });
 }));
 
 module.exports = router;

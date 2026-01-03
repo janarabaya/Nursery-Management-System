@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRequireRole } from '../utils/useAuth';
+import { API_BASE_URL } from '../config/api';
 import './SupplierDashboard.css';
 
 interface SupplyOrder {
@@ -99,8 +100,6 @@ export function SupplierDashboard() {
     phone: '',
     address: '',
   });
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
@@ -1180,6 +1179,7 @@ export function SupplierDashboard() {
     </div>
   );
 }
+
 
 
 
